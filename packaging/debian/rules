@@ -1,0 +1,36 @@
+#!/usr/bin/make -f
+# See debhelper(7) for supported syntax
+
+export DH_VERBOSE = 1
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	$(MAKE) DESTDIR=$$(pwd)/debian/dina PREFIX=/usr MANPREFIX=/usr/share/man
+
+override_dh_auto_install:
+	$(MAKE) DESTDIR=$$(pwd)/debian/dina PREFIX=/usr MANPREFIX=/usr/share/man install
+	
+	# Create directories for scripts
+	mkdir -p debian/dina/usr/share/DINA/scripts
+	
+	# Install scripts
+	cp -r scripts/* debian/dina/usr/share/DINA/scripts/
+	chmod +x debian/dina/usr/share/DINA/scripts/*
+	
+	# Install sxhkd config to skeleton directory
+	mkdir -p debian/dina/etc/skel/.config/sxhkd
+	cp sxhkd/sxhkdrc debian/dina/etc/skel/.config/sxhkd/
+	
+	# Install first-run script
+	mkdir -p debian/dina/usr/share/DINA
+	cp packaging/debian/dina-first-run.sh debian/dina/usr/share/DINA/
+	chmod +x debian/dina/usr/share/DINA/dina-first-run.sh
+	
+	# Install .desktop file for autostart
+	mkdir -p debian/dina/etc/xdg/autostart
+	cp packaging/debian/dina-first-run.desktop debian/dina/etc/xdg/autostart/
+	
+override_dh_installman:
+	dh_installman DINA.1

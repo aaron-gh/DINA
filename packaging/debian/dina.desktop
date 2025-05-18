@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=DINA
+Comment=DINA Is Not Aesthetics - Accessibility-first window manager
+Exec=DINA
+TryExec=DINA
+Type=Application
+Keywords=accessibility;screen reader;blind;
+Icon=preferences-desktop-accessibility

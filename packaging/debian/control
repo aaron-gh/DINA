@@ -1,0 +1,37 @@
+Source: dina
+Section: x11
+Priority: optional
+Maintainer: Aaron Hewitt <aaron.graham.hewitt@gmail.com>
+Build-Depends: debhelper-compat (= 13), libx11-dev, libxinerama-dev
+Standards-Version: 4.5.1
+Homepage: https://github.com/aaron-gh/DINA
+Vcs-Browser: https://github.com/aaron-gh/DINA
+Vcs-Git: https://github.com/aaron-gh/DINA.git
+
+Package: dina
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, 
+ sxhkd, 
+ speech-dispatcher, 
+ sox, 
+ dialog, 
+ orca, 
+ yad, 
+ acpi
+Recommends: xterm | x-terminal-emulator
+Description: Accessibility-first window manager for blind users
+ DINA (DINA Is Not Aesthetics) is an accessibility-first fork of dwm
+ window manager tailored specifically for blind users and screen reader
+ workflows.
+ .
+ Key features:
+  * Always uses monocle layout (fullscreen windows)
+  * No status bar or visual elements
+  * Audio and speech feedback via sox and speech-dispatcher
+  * Orca screen reader autostart for immediate accessibility
+  * YAD-based accessible application launcher
+  * Clean keyboard-only navigation
+ .
+ DINA removes all visual overhead and focuses on speech-based,
+ keyboard-only navigation — ideal for Orca users and terminal-centric
+ workflows.

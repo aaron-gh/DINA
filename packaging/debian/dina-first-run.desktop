@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=DINA First-Run Setup
+Comment=Configure DINA Window Manager
+Exec=/usr/share/DINA/dina-first-run.sh
+Terminal=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+X-KDE-autostart-after=panel

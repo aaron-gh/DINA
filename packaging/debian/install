@@ -1,0 +1,5 @@
+# Binary and man pages are handled by the Makefile in the rules file
+# Scripts are also handled in the rules file
+
+# Install XSession file
+packaging/debian/dina.desktop usr/share/xsessions/

@@ -1,0 +1,6 @@
+dina (1.0-1) unstable; urgency=medium
+
+  * Initial release
+  * Packaged version 1.0 of DINA accessibility-first window manager
+
+ -- Aaron Hewitt <aaron.graham.hewitt@gmail.com>  Sun, 18 May 2025 20:00:00 +0000
