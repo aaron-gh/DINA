@@ -9,17 +9,17 @@
 
 set -e
 
-# Accessibility options for dialog - simplify display for screen readers
-DIALOG_OPTS="--ascii-lines --no-shadow"
+# Maximum accessibility options for dialog - absolute minimal display for screen readers
+DIALOG_OPTS="--ascii-lines --no-shadow --no-mouse --stdout"
 
 # Function to handle errors
 error_exit() {
     echo "Error: $1" >&2
     
-    # Show a simple dialog box with the error
+    # Minimal error dialog
     if command -v dialog >/dev/null 2>&1; then
         dialog $DIALOG_OPTS --title "Error" \
-               --msgbox "Error: $1\n\nPress Enter to exit." 8 60
+               --msgbox "Error: $1" 5 25
     fi
     
     exit 1
@@ -31,12 +31,12 @@ if ! command -v dialog >/dev/null 2>&1; then
 fi
 
 # Display welcome message
-dialog $DIALOG_OPTS --title "DINA Setup" \
-       --msgbox "Welcome to the DINA interactive setup!\n\nThis wizard will help you configure your preferred applications.\n\nPress Enter to continue.\nPress Escape to cancel." \
-       10 60 || {
+if ! dialog $DIALOG_OPTS --title "Setup" \
+       --yesno "DINA Setup\n\nConfigure your applications?\n\nYes: Continue\nNo: Cancel" \
+       7 40; then
     echo "Setup cancelled"
     exit 0
-}
+fi
 
 # Detect installed browsers
 BROWSERS=()
@@ -67,10 +67,9 @@ check_browser "nyxt" || true
 
 if [ ${#BROWSERS[@]} -eq 0 ]; then
     # Allow user to specify path manually
-    BROWSER_PATH=$(dialog $DIALOG_OPTS --title "Browser Selection" \
-                         --inputbox "No browsers detected. Please enter the path to your browser:" \
-                         8 60 \
-                         3>&1 1>&2 2>&3)
+    BROWSER_PATH=$(dialog $DIALOG_OPTS --title "Browser" \
+                         --inputbox "No browsers found. Enter path:" \
+                         7 40)
     
     if [ $? -ne 0 ] || [ -z "$BROWSER_PATH" ]; then
         echo "No browser selected"
@@ -82,22 +81,20 @@ if [ ${#BROWSERS[@]} -eq 0 ]; then
         echo "Custom browser path set"
     fi
 else
-    # Create options for dialog with simple numbered format
+    # Create simple numbered options
     OPTIONS=()
     for i in "${!BROWSERS[@]}"; do
         OPTIONS+=("$i" "${BROWSERS[$i]}")
     done
     
-    BROWSER_INDEX=$(dialog $DIALOG_OPTS --title "Browser Selection" \
-                          --menu "Select your preferred web browser:" \
-                          12 50 6 \
-                          "${OPTIONS[@]}" \
-                          3>&1 1>&2 2>&3)
+    # Simple menu with minimal decoration
+    BROWSER_INDEX=$(dialog $DIALOG_OPTS --title "Browser" \
+                          --menu "Choose browser:" \
+                          10 30 6 \
+                          "${OPTIONS[@]}")
     
-    # Check the dialog return code
-    BROWSER_RESULT=$?
-    
-    if [ $BROWSER_RESULT -eq 0 ] && [ -n "$BROWSER_INDEX" ]; then
+    # Check result
+    if [ $? -eq 0 ] && [ -n "$BROWSER_INDEX" ]; then
         BROWSER_CHOICE="${BROWSER_PATHS[$BROWSER_INDEX]}"
         echo "${BROWSERS[$BROWSER_INDEX]} selected"
     else
@@ -132,10 +129,9 @@ check_file_manager "ranger" || true
 
 if [ ${#FILE_MANAGERS[@]} -eq 0 ]; then
     # Allow user to specify path manually
-    FILE_MANAGER_PATH=$(dialog $DIALOG_OPTS --title "File Manager Selection" \
-                              --inputbox "No file managers detected. Please enter the path to your file manager:" \
-                              8 60 \
-                              3>&1 1>&2 2>&3)
+    FILE_MANAGER_PATH=$(dialog $DIALOG_OPTS --title "File Manager" \
+                              --inputbox "No file managers found. Enter path:" \
+                              7 40)
     
     if [ $? -ne 0 ] || [ -z "$FILE_MANAGER_PATH" ]; then
         echo "No file manager selected"
@@ -147,22 +143,19 @@ if [ ${#FILE_MANAGERS[@]} -eq 0 ]; then
         echo "Custom file manager path set"
     fi
 else
-    # Create options for dialog
+    # Create simple options
     OPTIONS=()
     for i in "${!FILE_MANAGERS[@]}"; do
         OPTIONS+=("$i" "${FILE_MANAGERS[$i]}")
     done
     
-    FILE_MANAGER_INDEX=$(dialog $DIALOG_OPTS --title "File Manager Selection" \
-                               --menu "Select your preferred file manager:" \
-                               12 50 6 \
-                               "${OPTIONS[@]}" \
-                               3>&1 1>&2 2>&3)
+    FILE_MANAGER_INDEX=$(dialog $DIALOG_OPTS --title "File Manager" \
+                               --menu "Choose file manager:" \
+                               10 30 6 \
+                               "${OPTIONS[@]}")
                                
-    # Check the dialog return code
-    FILE_MANAGER_RESULT=$?
-    
-    if [ $FILE_MANAGER_RESULT -eq 0 ] && [ -n "$FILE_MANAGER_INDEX" ]; then
+    # Check result
+    if [ $? -eq 0 ] && [ -n "$FILE_MANAGER_INDEX" ]; then
         FILE_MANAGER_CHOICE="${FILE_MANAGER_PATHS[$FILE_MANAGER_INDEX]}"
         echo "${FILE_MANAGERS[$FILE_MANAGER_INDEX]} selected"
     else
@@ -200,10 +193,9 @@ check_terminal "wezterm" || true
 
 if [ ${#TERMINALS[@]} -eq 0 ]; then
     # Allow user to specify path manually
-    TERMINAL_PATH=$(dialog $DIALOG_OPTS --title "Terminal Selection" \
-                         --inputbox "No terminals detected. Please enter the path to your terminal:" \
-                         8 60 \
-                         3>&1 1>&2 2>&3)
+    TERMINAL_PATH=$(dialog $DIALOG_OPTS --title "Terminal" \
+                         --inputbox "No terminals found. Enter path:" \
+                         7 40)
     
     if [ $? -ne 0 ] || [ -z "$TERMINAL_PATH" ]; then
         echo "No terminal selected"
@@ -215,22 +207,19 @@ if [ ${#TERMINALS[@]} -eq 0 ]; then
         echo "Custom terminal path set"
     fi
 else
-    # Create options for dialog
+    # Create simple options
     OPTIONS=()
     for i in "${!TERMINALS[@]}"; do
         OPTIONS+=("$i" "${TERMINALS[$i]}")
     done
     
-    TERMINAL_INDEX=$(dialog $DIALOG_OPTS --title "Terminal Selection" \
-                           --menu "Select your preferred terminal:" \
-                           12 50 6 \
-                           "${OPTIONS[@]}" \
-                           3>&1 1>&2 2>&3)
+    TERMINAL_INDEX=$(dialog $DIALOG_OPTS --title "Terminal" \
+                           --menu "Choose terminal:" \
+                           10 30 6 \
+                           "${OPTIONS[@]}")
                            
-    # Check the dialog return code
-    TERMINAL_RESULT=$?
-    
-    if [ $TERMINAL_RESULT -eq 0 ] && [ -n "$TERMINAL_INDEX" ]; then
+    # Check result
+    if [ $? -eq 0 ] && [ -n "$TERMINAL_INDEX" ]; then
         TERMINAL_CHOICE="${TERMINAL_PATHS[$TERMINAL_INDEX]}"
         echo "${TERMINALS[$TERMINAL_INDEX]} selected"
     else
@@ -239,18 +228,14 @@ else
     fi
 fi
 
-# Confirmation dialog
-# Format the display names for better readability
+# Confirmation dialog with minimal text
 BROWSER_NAME=$(basename "${BROWSER_CHOICE:-None}" 2>/dev/null || echo "None")
 FILE_MANAGER_NAME=$(basename "${FILE_MANAGER_CHOICE:-None}" 2>/dev/null || echo "None")
 TERMINAL_NAME=$(basename "${TERMINAL_CHOICE:-None}" 2>/dev/null || echo "None")
 
-CONFIRM=$(dialog $DIALOG_OPTS --title "Confirm Selections" \
-                --yesno "Are these selections correct?\n\nBrowser: ${BROWSER_NAME}\nFile Manager: ${FILE_MANAGER_NAME}\nTerminal: ${TERMINAL_NAME}\n\nPress Enter to confirm, Escape to cancel." \
-                10 60 \
-                3>&1 1>&2 2>&3)
-
-if [ $? -ne 0 ]; then
+if ! dialog $DIALOG_OPTS --title "Confirm" \
+         --yesno "Browser: ${BROWSER_NAME}\nFile Manager: ${FILE_MANAGER_NAME}\nTerminal: ${TERMINAL_NAME}\n\nConfirm?" \
+         7 40; then
     echo "Setup cancelled"
     echo "Setup cancelled by user." >&2
     exit 0
@@ -378,17 +363,13 @@ if [ -n "$TERMINAL_CHOICE" ]; then
     echo "Terminal shortcut set to Super+Return"
 fi
 
-# Success message
+# Simple success message
 echo "Setup completed successfully"
 
-# Format the display names for better readability
-BROWSER_NAME=$(basename "${BROWSER_CHOICE:-None}" 2>/dev/null || echo "None")
-FILE_MANAGER_NAME=$(basename "${FILE_MANAGER_CHOICE:-None}" 2>/dev/null || echo "None")
-TERMINAL_NAME=$(basename "${TERMINAL_CHOICE:-None}" 2>/dev/null || echo "None")
-
-dialog $DIALOG_OPTS --title "Setup Complete" \
-       --msgbox "DINA has been configured with your preferences.\n\nBrowser: ${BROWSER_NAME}\nFile Manager: ${FILE_MANAGER_NAME}\nTerminal: ${TERMINAL_NAME}\n\nPress Enter to exit." \
-       10 60
+# Basic completion message
+dialog $DIALOG_OPTS --title "Done" \
+       --msgbox "Setup complete.\n\nEnter to exit." \
+       5 25
 
 # Reload sxhkd if it's running
 if pgrep -x "sxhkd" > /dev/null; then
