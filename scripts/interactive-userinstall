@@ -1,0 +1,327 @@
+#!/bin/bash
+#
+# interactive-userinstall - Setup user preferences for DINA
+#
+# This script detects installed applications and allows the user to
+# select their preferred browsers, file managers, and terminals.
+# It then updates sxhkdrc configuration with the selected preferences.
+# Fully accessible with keyboard navigation using dialog.
+
+set -e
+
+# Function to handle errors
+error_exit() {
+    echo "Error: $1" >&2
+    exit 1
+}
+
+# Check if dialog is installed
+if ! command -v dialog >/dev/null 2>&1; then
+    error_exit "dialog is required but not installed. Please install it first."
+fi
+
+# Display welcome message
+dialog --title "DINA Setup" \
+       --msgbox "Welcome to the DINA interactive setup!\n\nThis wizard will help you configure your preferred applications.\n\nPress Enter to continue." \
+       10 60 || {
+    echo "Setup cancelled"
+    exit 0
+}
+
+# Detect installed browsers
+BROWSERS=()
+BROWSER_PATHS=()
+
+check_browser() {
+    if command -v "$1" >/dev/null 2>&1; then
+        BROWSERS+=("$1")
+        BROWSER_PATHS+=("$(command -v "$1")")
+        return 0
+    fi
+    return 1
+}
+
+# Check for common browsers
+check_browser "firefox" || true
+check_browser "chromium" || true
+check_browser "chromium-browser" || true
+check_browser "google-chrome" || true
+check_browser "brave" || true
+check_browser "vivaldi" || true
+check_browser "opera" || true
+check_browser "qutebrowser" || true
+check_browser "falkon" || true
+check_browser "epiphany" || true
+check_browser "midori" || true
+check_browser "nyxt" || true
+
+if [ ${#BROWSERS[@]} -eq 0 ]; then
+    # Allow user to specify path manually
+    BROWSER_PATH=$(dialog --title "Browser Selection" \
+                         --inputbox "No browsers detected. Please enter the path to your browser:" \
+                         10 60 \
+                         3>&1 1>&2 2>&3)
+    
+    if [ $? -ne 0 ] || [ -z "$BROWSER_PATH" ]; then
+        echo "No browser selected"
+        BROWSER_CHOICE=""
+    elif [ ! -x "$BROWSER_PATH" ]; then
+        error_exit "The specified browser path is not executable."
+    else
+        BROWSER_CHOICE="$BROWSER_PATH"
+        echo "Custom browser path set"
+    fi
+else
+    # Create options for dialog
+    OPTIONS=()
+    for i in "${!BROWSERS[@]}"; do
+        OPTIONS+=("$i" "${BROWSERS[$i]}")
+    done
+    
+    # Display browser selection dialog
+    BROWSER_INDEX=$(dialog --title "Browser Selection" \
+                          --menu "Select your preferred web browser:" \
+                          15 40 10 \
+                          "${OPTIONS[@]}" \
+                          3>&1 1>&2 2>&3)
+    
+    if [ $? -ne 0 ]; then
+        echo "No browser selected"
+        BROWSER_CHOICE=""
+    else
+        BROWSER_CHOICE="${BROWSER_PATHS[$BROWSER_INDEX]}"
+        echo "${BROWSERS[$BROWSER_INDEX]} selected"
+    fi
+fi
+
+# Detect installed file managers
+FILE_MANAGERS=()
+FILE_MANAGER_PATHS=()
+
+check_file_manager() {
+    if command -v "$1" >/dev/null 2>&1; then
+        FILE_MANAGERS+=("$1")
+        FILE_MANAGER_PATHS+=("$(command -v "$1")")
+        return 0
+    fi
+    return 1
+}
+
+# Check for common file managers
+check_file_manager "nautilus" || true
+check_file_manager "thunar" || true
+check_file_manager "pcmanfm" || true
+check_file_manager "dolphin" || true
+check_file_manager "nemo" || true
+check_file_manager "caja" || true
+check_file_manager "spacefm" || true
+check_file_manager "krusader" || true
+check_file_manager "ranger" || true
+
+if [ ${#FILE_MANAGERS[@]} -eq 0 ]; then
+    # Allow user to specify path manually
+    FILE_MANAGER_PATH=$(dialog --title "File Manager Selection" \
+                              --inputbox "No file managers detected. Please enter the path to your file manager:" \
+                              10 60 \
+                              3>&1 1>&2 2>&3)
+    
+    if [ $? -ne 0 ] || [ -z "$FILE_MANAGER_PATH" ]; then
+        echo "No file manager selected"
+        FILE_MANAGER_CHOICE=""
+    elif [ ! -x "$FILE_MANAGER_PATH" ]; then
+        error_exit "The specified file manager path is not executable."
+    else
+        FILE_MANAGER_CHOICE="$FILE_MANAGER_PATH"
+        echo "Custom file manager path set"
+    fi
+else
+    # Create options for dialog
+    OPTIONS=()
+    for i in "${!FILE_MANAGERS[@]}"; do
+        OPTIONS+=("$i" "${FILE_MANAGERS[$i]}")
+    done
+    
+    # Display file manager selection dialog
+    FILE_MANAGER_INDEX=$(dialog --title "File Manager Selection" \
+                               --menu "Select your preferred file manager:" \
+                               15 40 10 \
+                               "${OPTIONS[@]}" \
+                               3>&1 1>&2 2>&3)
+    
+    if [ $? -ne 0 ]; then
+        echo "No file manager selected"
+        FILE_MANAGER_CHOICE=""
+    else
+        FILE_MANAGER_CHOICE="${FILE_MANAGER_PATHS[$FILE_MANAGER_INDEX]}"
+        echo "${FILE_MANAGERS[$FILE_MANAGER_INDEX]} selected"
+    fi
+fi
+
+# Detect installed terminals
+TERMINALS=()
+TERMINAL_PATHS=()
+
+check_terminal() {
+    if command -v "$1" >/dev/null 2>&1; then
+        TERMINALS+=("$1")
+        TERMINAL_PATHS+=("$(command -v "$1")")
+        return 0
+    fi
+    return 1
+}
+
+# Check for common terminals
+check_terminal "alacritty" || true
+check_terminal "xterm" || true
+check_terminal "urxvt" || true
+check_terminal "kitty" || true
+check_terminal "gnome-terminal" || true
+check_terminal "konsole" || true
+check_terminal "terminator" || true
+check_terminal "xfce4-terminal" || true
+check_terminal "tilix" || true
+check_terminal "st" || true
+check_terminal "foot" || true
+check_terminal "wezterm" || true
+
+if [ ${#TERMINALS[@]} -eq 0 ]; then
+    # Allow user to specify path manually
+    TERMINAL_PATH=$(dialog --title "Terminal Selection" \
+                         --inputbox "No terminals detected. Please enter the path to your terminal:" \
+                         10 60 \
+                         3>&1 1>&2 2>&3)
+    
+    if [ $? -ne 0 ] || [ -z "$TERMINAL_PATH" ]; then
+        echo "No terminal selected"
+        TERMINAL_CHOICE=""
+    elif [ ! -x "$TERMINAL_PATH" ]; then
+        error_exit "The specified terminal path is not executable."
+    else
+        TERMINAL_CHOICE="$TERMINAL_PATH"
+        echo "Custom terminal path set"
+    fi
+else
+    # Create options for dialog
+    OPTIONS=()
+    for i in "${!TERMINALS[@]}"; do
+        OPTIONS+=("$i" "${TERMINALS[$i]}")
+    done
+    
+    # Display terminal selection dialog
+    TERMINAL_INDEX=$(dialog --title "Terminal Selection" \
+                           --menu "Select your preferred terminal:" \
+                           15 40 10 \
+                           "${OPTIONS[@]}" \
+                           3>&1 1>&2 2>&3)
+    
+    if [ $? -ne 0 ]; then
+        echo "No terminal selected"
+        TERMINAL_CHOICE=""
+    else
+        TERMINAL_CHOICE="${TERMINAL_PATHS[$TERMINAL_INDEX]}"
+        echo "${TERMINALS[$TERMINAL_INDEX]} selected"
+    fi
+fi
+
+# Confirmation dialog
+CONFIRM=$(dialog --title "Confirm Selections" \
+                --yesno "Are these selections correct?\n\nBrowser: ${BROWSER_CHOICE:-None}\nFile Manager: ${FILE_MANAGER_CHOICE:-None}\nTerminal: ${TERMINAL_CHOICE:-None}" \
+                10 60 \
+                3>&1 1>&2 2>&3)
+
+if [ $? -ne 0 ]; then
+    echo "Setup cancelled"
+    echo "Setup cancelled by user." >&2
+    exit 0
+fi
+
+echo "Updating configuration..."
+
+# Path to sxhkdrc
+SXHKDRC="$HOME/.config/sxhkd/sxhkdrc"
+# Also check in DINA directory
+if [ ! -f "$SXHKDRC" ]; then
+    # Get the script's directory
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    # Go up one directory (assuming script is in scripts/)
+    DINA_DIR="$(dirname "$SCRIPT_DIR")"
+    SXHKDRC="$DINA_DIR/sxhkd/sxhkdrc"
+fi
+
+# Create ~/.config/sxhkd directory if it doesn't exist
+if [ ! -d "$HOME/.config/sxhkd" ]; then
+    mkdir -p "$HOME/.config/sxhkd"
+fi
+
+# If sxhkdrc doesn't exist in user's config, copy it from DINA
+if [ ! -f "$HOME/.config/sxhkd/sxhkdrc" ]; then
+    # Get the script's directory if not already set
+    if [ -z "$SCRIPT_DIR" ]; then
+        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        DINA_DIR="$(dirname "$SCRIPT_DIR")"
+    fi
+    
+    if [ -f "$DINA_DIR/sxhkd/sxhkdrc" ]; then
+        cp "$DINA_DIR/sxhkd/sxhkdrc" "$HOME/.config/sxhkd/sxhkdrc"
+        SXHKDRC="$HOME/.config/sxhkd/sxhkdrc"
+    else
+        error_exit "Could not find sxhkdrc file."
+    fi
+fi
+
+# Make a backup of the original file
+cp "$SXHKDRC" "${SXHKDRC}.bak"
+
+# Update sxhkdrc with the selected applications
+if [ -n "$BROWSER_CHOICE" ]; then
+    # Check if browser binding already exists
+    if grep -q "^super + w" "$SXHKDRC"; then
+        # Update existing binding
+        sed -i "s|^super + w.*|super + w\n\t$BROWSER_CHOICE|" "$SXHKDRC"
+    else
+        # Add new binding
+        echo -e "\nsuper + w\n\t$BROWSER_CHOICE" >> "$SXHKDRC"
+    fi
+    echo "Browser shortcut set to Super+W"
+fi
+
+if [ -n "$FILE_MANAGER_CHOICE" ]; then
+    # Check if file manager binding already exists
+    if grep -q "^super + f" "$SXHKDRC"; then
+        # Update existing binding
+        sed -i "s|^super + f.*|super + f\n\t$FILE_MANAGER_CHOICE|" "$SXHKDRC"
+    else
+        # Add new binding
+        echo -e "\nsuper + f\n\t$FILE_MANAGER_CHOICE" >> "$SXHKDRC"
+    fi
+    echo "File manager shortcut set to Super+F"
+fi
+
+if [ -n "$TERMINAL_CHOICE" ]; then
+    # Check if terminal binding already exists
+    if grep -q "^super + Return" "$SXHKDRC"; then
+        # Update existing binding
+        sed -i "s|^super + Return.*|super + Return\n\t$TERMINAL_CHOICE|" "$SXHKDRC"
+    else
+        # Add new binding
+        echo -e "\nsuper + Return\n\t$TERMINAL_CHOICE" >> "$SXHKDRC"
+    fi
+    echo "Terminal shortcut set to Super+Return"
+fi
+
+# Success message
+echo "Setup completed successfully"
+dialog --title "Setup Complete" \
+       --msgbox "DINA has been configured with your preferences.\n\nBrowser: ${BROWSER_CHOICE:-None}\nFile Manager: ${FILE_MANAGER_CHOICE:-None}\nTerminal: ${TERMINAL_CHOICE:-None}\n\nPress Enter to exit." \
+       12 60
+
+# Reload sxhkd if it's running
+if pgrep -x "sxhkd" > /dev/null; then
+    pkill -USR1 -x sxhkd
+    echo "Shortcuts reloaded"
+    echo "sxhkd configuration reloaded."
+else
+    echo "Note: sxhkd is not running. Changes will take effect when sxhkd starts."
+fi
+
+exit 0

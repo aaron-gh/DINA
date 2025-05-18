@@ -29,6 +29,11 @@ userinstall:
 	mkdir -p ${HOME}/.config/sxhkd
 	cp -f sxhkd/sxhkdrc ${HOME}/.config/sxhkd/sxhkdrc
 
+interactive-userinstall:
+	# Run the interactive userinstall script
+	@echo "Running interactive setup..."
+	@${HOME}/.local/bin/interactive-userinstall || scripts/interactive-userinstall
+
 uninstall:
 	rm -f ${PREFIX}/bin/DINA
 	rm -f ${MANPREFIX}/man1/DINA.1
@@ -36,4 +41,4 @@ uninstall:
 	      ${HOME}/.local/bin/app-launcher ${HOME}/.local/bin/session-menu
 	rm -f ${HOME}/.config/sxhkd/sxhkdrc
 
-.PHONY: all clean install userinstall uninstall
+.PHONY: all clean install userinstall interactive-userinstall uninstall

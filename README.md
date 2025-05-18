@@ -42,6 +42,20 @@ sudo make install
 make userinstall
 ```
 
+### 3. Interactive Setup (optional)
+
+For an accessible, interactive setup that helps you configure your preferred applications:
+
+```sh
+make interactive-userinstall
+```
+
+This will:
+- Detect installed browsers, file managers, and terminals
+- Let you select your preferred applications using arrow keys
+- Update keybindings for Super+W (browser), Super+F (file manager), and Super+Return (terminal)
+- Fully accessible with dialog menus for screen reader users
+
 ---
 
 ## 📁 What’s Installed
@@ -66,6 +80,9 @@ Users can toggle blackout manually using the provided script.
 | `Super + k`               | Kill focused window        |
 | `Super + a`               | Launch accessible app menu |
 | `Super + b`               | Toggle screen blackout     |
+| `Super + f`               | Open file manager          |
+| `Super + w`               | Open web browser           |
+| `Super + Return`          | Open terminal              |
 | `Super + Backspace`       | Power/session menu         |
 | `Super + [1–9]`           | Switch workspace/tag       |
 | `Super + Shift + q`       | Quit DINA                  |
@@ -79,6 +96,7 @@ You should have the following packages installed:
 - `libx11`, `libxinerama`, `xorg-xrandr`
 - `make`, `gcc`
 - `orca`, `yad`, `sxhkd`, `sox`, `acpi`, `speech-dispatcher`
+- `dialog` (for interactive setup)
 - A terminal emulator like `alacritty`, `foot`, or `xterm`
 
 ---
