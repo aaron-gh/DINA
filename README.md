@@ -51,6 +51,7 @@ For Debian-based systems (Debian, Ubuntu, etc.), you can install DINA using the 
 #### 1. Build and install the `DINA` binary (requires `sudo`):
 
 ```sh
+make clean
 make
 sudo make install
 ```
