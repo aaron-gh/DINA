@@ -24,6 +24,7 @@ DINA removes all visual overhead and focuses on **speech-based**, **keyboard-onl
 - ✅ Screen blackout toggle script for full visual suppression
 - ✅ Low battery warning via `notify-send` + `spd-say`
 - ✅ Clean keyboard control via `sxhkd`
+- ✅ Orca screen reader autostart for immediate accessibility
 
 ---
 

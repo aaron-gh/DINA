@@ -42,7 +42,8 @@ uninstall:
 	rm -f ${PREFIX}/bin/DINA
 	rm -f ${MANPREFIX}/man1/DINA.1
 	rm -f ${HOME}/.local/bin/toggle-blackout ${HOME}/.local/bin/battery-watch \
-	      ${HOME}/.local/bin/app-launcher ${HOME}/.local/bin/session-menu
+	      ${HOME}/.local/bin/app-launcher ${HOME}/.local/bin/session-menu \
+	      ${HOME}/.local/bin/start-orca ${HOME}/.local/bin/interactive-userinstall
 	rm -f ${HOME}/.config/sxhkd/sxhkdrc
 
 .PHONY: all clean install userinstall interactive-userinstall uninstall

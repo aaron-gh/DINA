@@ -1639,6 +1639,18 @@ setup(void)
 	XSelectInput(dpy, root, wa.event_mask);
 	grabkeys();
 	focus(NULL);
+
+	/* Autostart Orca screen reader for accessibility */
+	const char *home = getenv("HOME");
+	if (home) {
+		char orcapath[256];
+		snprintf(orcapath, sizeof(orcapath), "%s/.local/bin/start-orca", home);
+		
+		Arg arg = {0};
+		char *orcacmd[] = { orcapath, NULL };
+		arg.v = orcacmd;
+		spawn(&arg);
+	}
 }
 
 void

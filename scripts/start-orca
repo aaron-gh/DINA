@@ -1,0 +1,29 @@
+#!/bin/bash
+#
+# start-orca - Non-blocking Orca screen reader launcher for DINA
+#
+# This script ensures Orca starts with DINA without blocking
+# the window manager startup process
+
+# Ensure script runs in background
+if [ "$1" != "background" ]; then
+    # If not already running in background, restart self in background
+    "$0" background & 
+    exit 0
+fi
+
+# Wait a moment for DINA to initialize
+sleep 2
+
+# Check if Orca is already running
+if ! pgrep -x "orca" > /dev/null; then
+    # Start Orca with minimal logging to avoid terminal clutter
+    nohup orca --replace --no-setup --disable-sound-keys >/dev/null 2>&1 &
+    
+    # Optionally announce that screen reader is starting
+    if command -v spd-say >/dev/null 2>&1; then
+        spd-say -r -20 "Starting Orca screen reader"
+    fi
+fi
+
+exit 0
