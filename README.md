@@ -30,20 +30,39 @@ DINA removes all visual overhead and focuses on **speech-based**, **keyboard-onl
 
 ## 🧱 Installation
 
-### 1. Build and install the `DINA` binary (requires `sudo`):
+### Option 1: Debian Package (recommended)
+
+For Debian-based systems (Debian, Ubuntu, etc.), you can install DINA using the pre-built package:
+
+1. Download the latest release package from [GitHub Releases](https://github.com/aaron-gh/DINA/releases)
+
+2. Install the package and its dependencies:
+
+```sh
+sudo dpkg -i dina_1.0-1_amd64.deb
+sudo apt-get install -f  # Installs dependencies
+```
+
+3. Log out and select DINA from your display manager's session menu
+
+4. On first login, the interactive setup will run automatically
+
+### Option 2: From Source
+
+#### 1. Build and install the `DINA` binary (requires `sudo`):
 
 ```sh
 make
 sudo make install
 ```
 
-### 2. Install user configs and scripts (as your user):
+#### 2. Install user configs and scripts (as your user):
 
 ```sh
 make userinstall
 ```
 
-### 3. Interactive Setup (optional)
+#### 3. Interactive Setup (optional)
 
 For an accessible, interactive setup that helps you configure your preferred applications:
 
@@ -56,6 +75,20 @@ This will:
 - Let you select your preferred applications using arrow keys
 - Update keybindings for Super+W (browser), Super+F (file manager), and Super+Return (terminal)
 - Fully accessible with dialog menus for screen reader users
+
+### Building Debian Packages
+
+If you want to build your own Debian package, the repository includes a complete packaging system:
+
+```sh
+# Build using Docker (works on any system with Docker):
+bash packaging/build-with-docker.sh
+
+# Or directly on a Debian-based system:
+bash packaging/build-package.sh
+```
+
+See the [packaging documentation](packaging/README.md) for more details.
 
 ---
 
@@ -90,15 +123,26 @@ Users can toggle blackout manually using the provided script.
 
 ---
 
-## 📦 Runtime Dependencies
+## 📦 Dependencies
+
+### Runtime Dependencies
 
 You should have the following packages installed:
 
-- `libx11`, `libxinerama`, `xorg-xrandr`
-- `make`, `gcc`
+- `libx11`, `libxinerama`, `libxft`
 - `orca`, `yad`, `sxhkd`, `sox`, `acpi`, `speech-dispatcher`
 - `dialog` (for interactive setup)
 - A terminal emulator like `alacritty`, `foot`, or `xterm`
+
+### Build Dependencies
+
+For building from source:
+- `make`, `gcc`
+- `libx11-dev`, `libxinerama-dev`, `libxft-dev`
+
+For building Debian packages:
+- `build-essential`, `debhelper`, `devscripts`, `dpkg-dev`
+- Alternatively, just Docker for cross-platform building
 
 ---
 

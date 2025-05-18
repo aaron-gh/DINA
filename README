@@ -1,48 +1,71 @@
-dwm - dynamic window manager
+DINA - DINA Is Not Aesthetics
 ============================
-dwm is an extremely fast, small, and dynamic window manager for X.
+DINA is a stripped-down, accessibility-first fork of dwm tailored for
+blind users and screen reader workflows.
 
+Philosophy
+---------
+DINA doesn't draw. DINA doesn't float. DINA doesn't get in your way.
+It's for users who hear, not see.
+
+DINA removes all visual overhead and focuses on speech-based, keyboard-only
+navigation — ideal for Orca users and terminal-centric workflows.
+
+Features
+-------
+- Always uses monocle layout (fullscreen windows)
+- No status bar
+- No layout switching
+- No floating window support
+- Audio + speech feedback via sox and spd-say
+- YAD-based application launcher, accessible with Orca
+- Screen blackout toggle script for full visual suppression
+- Low battery warning via notify-send and spd-say
+- Clean keyboard control via sxhkd
+- Orca screen reader autostart for immediate accessibility
 
 Requirements
-------------
-In order to build dwm you need the Xlib header files.
-
+-----------
+- libx11, libxinerama, libxft
+- orca, yad, sxhkd, sox, acpi, speech-dispatcher
+- dialog (for interactive setup)
+- A terminal emulator
 
 Installation
-------------
-Edit config.mk to match your local setup (dwm is installed into
-the /usr/local namespace by default).
+-----------
+Option 1: Debian Package (recommended)
 
-Afterwards enter the following command to build and install dwm (if
-necessary as root):
+Download the latest release package from the GitHub Releases page and install:
+
+    sudo dpkg -i dina_1.0-1_amd64.deb
+    sudo apt-get install -f  # Installs dependencies
+
+Option 2: From Source
+
+Build and install as root:
 
     make clean install
 
+Then install user configs as your user:
 
-Running dwm
------------
-Add the following line to your .xinitrc to start dwm using startx:
+    make userinstall
 
-    exec dwm
+For interactive setup:
 
-In order to connect dwm to a specific display, make sure that
-the DISPLAY environment variable is set correctly, e.g.:
+    make interactive-userinstall
 
-    DISPLAY=foo.bar:1 exec dwm
+Building Debian Packages:
 
-(This will start dwm on display :1 of the host foo.bar.)
+    # Using Docker (cross-platform):
+    bash packaging/build-with-docker.sh
 
-In order to display status info in the bar, you can do something
-like this in your .xinitrc:
-
-    while xsetroot -name "`date` `uptime | sed 's/.*,//'`"
-    do
-    	sleep 1
-    done &
-    exec dwm
-
+    # On Debian systems:
+    bash packaging/build-package.sh
 
 Configuration
--------------
-The configuration of dwm is done by creating a custom config.h
+------------
+The configuration of DINA is done by creating a custom config.h
 and (re)compiling the source code.
+
+Additional user configuration is managed through the interactive
+setup process and the sxhkd configuration file.
