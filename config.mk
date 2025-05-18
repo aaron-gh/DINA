@@ -1,5 +1,5 @@
-# dwm version
-VERSION = 6.5
+# DINA version (based on dwm 6.5)
+VERSION = 1.0
 
 # Customize below to fit your system
 

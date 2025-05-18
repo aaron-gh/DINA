@@ -3,19 +3,22 @@ include config.mk
 SRC = dwm.c drw.c util.c
 OBJ = ${SRC:.c=.o}
 
-all: dwm
+all: DINA
 
-dwm: ${OBJ}
+DINA: ${OBJ}
 	${CC} -o $@ ${OBJ} ${LDFLAGS} -lX11 -lXinerama
 
 clean:
-	rm -f dwm ${OBJ} *.core
+	rm -f DINA ${OBJ} *.core
 
 install: all
-	# Install dwm binary system-wide
+	# Install DINA binary system-wide
 	mkdir -p ${DESTDIR}${PREFIX}/bin
-	cp -f dwm ${DESTDIR}${PREFIX}/bin
-	chmod 755 ${DESTDIR}${PREFIX}/bin/dwm
+	cp -f DINA ${DESTDIR}${PREFIX}/bin
+	chmod 755 ${DESTDIR}${PREFIX}/bin/DINA
+	mkdir -p ${DESTDIR}${MANPREFIX}/man1
+	cp -f DINA.1 ${DESTDIR}${MANPREFIX}/man1/DINA.1
+	chmod 644 ${DESTDIR}${MANPREFIX}/man1/DINA.1
 
 userinstall:
 	# User-local install for scripts and configs
@@ -27,7 +30,8 @@ userinstall:
 	cp -f sxhkd/sxhkdrc ${HOME}/.config/sxhkd/sxhkdrc
 
 uninstall:
-	rm -f ${PREFIX}/bin/dwm
+	rm -f ${PREFIX}/bin/DINA
+	rm -f ${MANPREFIX}/man1/DINA.1
 	rm -f ${HOME}/.local/bin/toggle-blackout ${HOME}/.local/bin/battery-watch \
 	      ${HOME}/.local/bin/app-launcher ${HOME}/.local/bin/session-menu
 	rm -f ${HOME}/.config/sxhkd/sxhkdrc

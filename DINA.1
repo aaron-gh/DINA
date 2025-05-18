@@ -1,0 +1,83 @@
+.TH DINA 1 DINA\-VERSION
+.SH NAME
+DINA \- DINA Is Not Aesthetics window manager
+.SH SYNOPSIS
+.B DINA
+.RB [ \-v ]
+.SH DESCRIPTION
+DINA is an accessibility-first window manager for X, derived from dwm (dynamic window manager).
+It's designed specifically for blind users and screen reader workflows, focusing on speech-based, keyboard-only navigation.
+.P
+DINA uses a simplified approach that always displays windows in monocle layout (fullscreen),
+making it ideal for screen reader users who prefer a single window at a time.
+There is no status bar and no floating window functionality, removing visual overhead
+to focus on an accessible, speech-based experience.
+.P
+Windows are grouped by tags. Each window can be tagged with one or multiple
+tags. Selecting certain tags displays all windows with these tags.
+.P
+DINA provides audio and speech feedback via 'sox' and 'spd-say' for critical
+operations like window focus changes, tag switching, and screen blackout toggling.
+.SH OPTIONS
+.TP
+.B \-v
+prints version information to stderr, then exits.
+.SH USAGE
+.SS Keyboard commands
+.TP
+.B Super\-j
+Focus previous window.
+.TP
+.B Super\-l
+Focus next window.
+.TP
+.B Super\-k
+Kill focused window.
+.TP
+.B Super\-a
+Launch accessible application menu.
+.TP
+.B Super\-b
+Toggle screen blackout.
+.TP
+.B Super\-Backspace
+Power/session menu.
+.TP
+.B Super\-[1..9]
+View all windows with nth tag.
+.TP
+.B Super\-Shift\-[1..9]
+Apply nth tag to focused window.
+.TP
+.B Super\-Shift\-q
+Quit DINA.
+.SH CUSTOMIZATION
+DINA is customized by creating a custom config.h and (re)compiling the source
+code. This keeps it fast, secure and simple.
+.SH ACCESSIBILITY FEATURES
+.TP
+.B YAD-based application launcher
+An accessible application menu that works well with screen readers.
+.TP
+.B Screen blackout toggle
+A script to completely turn off the display for users who don't need visual output.
+.TP
+.B Audio feedback
+Sound cues for important actions using 'sox'.
+.TP
+.B Speech feedback
+Voice announcements for critical state changes using 'spd-say'.
+.TP
+.B Low battery warning
+Audio and notification alerts for low battery status.
+.SH CREDITS
+DINA is based on dwm, the dynamic window manager by suckless.org.
+Modified to prioritize accessibility for blind users.
+.SH SEE ALSO
+.BR dwm (1),
+.BR sxhkd (1),
+.BR orca (1),
+.BR yad (1),
+.BR sox (1)
+.SH BUGS
+Send all bug reports with a patch to the project repository.
