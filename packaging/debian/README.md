@@ -14,14 +14,14 @@ The DINA Debian package:
 ### Prerequisites
 
 You need the following packages installed:
-```
+```sh
 sudo apt-get install debhelper dh-make devscripts build-essential
 ```
 
 ### Build Steps
 
 From the repository root:
-```
+```sh
 cd packaging/debian
 dpkg-buildpackage -us -uc -b
 ```

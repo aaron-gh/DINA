@@ -22,7 +22,7 @@ The Docker-based build method allows you to build DINA packages on any system th
 ### Build Steps
 
 1. From the repository root directory, run:
-   ```
+   ```sh
    bash packaging/build-with-docker.sh
    ```
 
@@ -39,14 +39,14 @@ If you're already running a Debian-based system (Debian, Ubuntu, etc.), you can 
 ### Prerequisites
 
 On a Debian-based system, install the required build tools:
-```
+```sh
 sudo apt-get install build-essential debhelper devscripts dpkg-dev
 ```
 
 ### Build Steps
 
 1. From the repository root directory, run:
-   ```
+   ```sh
    bash packaging/build-package.sh
    ```
 
@@ -82,7 +82,7 @@ The package includes an automatic first-run setup that:
 
 After building the package, install it with:
 
-```bash
+```sh
 sudo dpkg -i packaging/build/dina_1.0-1_amd64.deb
 sudo apt-get install -f  # To resolve any dependencies
 ```

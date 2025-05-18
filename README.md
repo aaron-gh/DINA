@@ -6,8 +6,8 @@
 
 ## 🧠 Philosophy
 
-> DINA doesn’t draw. DINA doesn’t float. DINA doesn’t get in your way.  
-> It’s for users who hear, not see.
+> DINA doesn't draw. DINA doesn't float. DINA doesn't get in your way.  
+> It's for users who hear, not see.
 
 DINA removes all visual overhead and focuses on **speech-based**, **keyboard-only** navigation — ideal for `Orca` users and terminal-centric workflows.
 
@@ -37,11 +37,10 @@ For Debian-based systems (Debian, Ubuntu, etc.), you can install DINA using the 
 1. Download the latest release package from [GitHub Releases](https://github.com/aaron-gh/DINA/releases)
 
 2. Install the package and its dependencies:
-
-```sh
-sudo dpkg -i dina_1.0-1_amd64.deb
-sudo apt-get install -f  # Installs dependencies
-```
+   ```sh
+   sudo dpkg -i dina_1.0-1_amd64.deb
+   sudo apt-get install -f  # Installs dependencies
+   ```
 
 3. Log out and select DINA from your display manager's session menu
 
@@ -92,34 +91,34 @@ See the [packaging documentation](packaging/README.md) for more details.
 
 ---
 
-## 📁 What’s Installed
+## 📁 What's Installed
 
-| Component                  | Path                                      |
-|---------------------------|-------------------------------------------|
-| `DINA` binary             | `/usr/local/bin/DINA`                     |
-| Accessibility scripts     | `~/.local/bin/`                           |
-| `sxhkdrc` config          | `~/.config/sxhkd/sxhkdrc`                 |
+| Component              | Path                      |
+|-----------------------|---------------------------|
+| `DINA` binary         | `/usr/local/bin/DINA`     |
+| Accessibility scripts | `~/.local/bin/`           |
+| `sxhkdrc` config      | `~/.config/sxhkd/sxhkdrc` |
 
 > 💡 The systemd service to restore screen blackout on resume was removed.  
-Users can toggle blackout manually using the provided script.
+> Users can toggle blackout manually using the provided script.
 
 ---
 
 ## 🗝️ Default Keybindings (via `sxhkd`)
 
-| Key                        | Action                     |
-|---------------------------|----------------------------|
-| `Super + j`               | Focus previous window      |
-| `Super + l`               | Focus next window          |
-| `Super + k`               | Kill focused window        |
-| `Super + a`               | Launch accessible app menu |
-| `Super + b`               | Toggle screen blackout     |
-| `Super + f`               | Open file manager          |
-| `Super + w`               | Open web browser           |
-| `Super + Return`          | Open terminal              |
-| `Super + Backspace`       | Power/session menu         |
-| `Super + [1–9]`           | Switch workspace/tag       |
-| `Super + Shift + q`       | Quit DINA                  |
+| Key                  | Action                     |
+|---------------------|----------------------------|
+| `Super + j`         | Focus previous window      |
+| `Super + l`         | Focus next window          |
+| `Super + k`         | Kill focused window        |
+| `Super + a`         | Launch accessible app menu |
+| `Super + b`         | Toggle screen blackout     |
+| `Super + f`         | Open file manager          |
+| `Super + w`         | Open web browser           |
+| `Super + Return`    | Open terminal              |
+| `Super + Backspace` | Power/session menu         |
+| `Super + [1–9]`     | Switch workspace/tag       |
+| `Super + Shift + q` | Quit DINA                  |
 
 ---
 
