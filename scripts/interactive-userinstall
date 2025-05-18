@@ -15,16 +15,28 @@ error_exit() {
     exit 1
 }
 
-# Simple direct selection function
+# Ultra simple selection function
 get_selection() {
-    local max=$1
+    local max="$1"
+    local user_input
     
     echo
     echo -n "Type number and press Enter: "
     read user_input
     
-    # Very basic validation
-    if [[ "$user_input" =~ ^[0-9]+$ ]] && [ "$user_input" -lt "$max" ]; then
+    # Manual validation to avoid any shell arithmetic errors
+    if [ -z "$user_input" ]; then
+        echo ""
+        return
+    fi
+    
+    # Check if input is a number
+    case "$user_input" in
+        ''|*[!0-9]*) echo ""; return ;;
+    esac
+    
+    # Check if number is in range
+    if [ "$user_input" -lt "$max" ]; then
         echo "$user_input"
     else
         echo ""
@@ -109,7 +121,7 @@ else
         echo "  $i. ${BROWSERS[$i]}"
     done
     
-    choice=$(get_selection ${#BROWSERS[@]})
+    choice=$(get_selection "${#BROWSERS[@]}")
     
     if [ -n "$choice" ]; then
         BROWSER_CHOICE="${BROWSER_PATHS[$choice]}"
@@ -167,7 +179,7 @@ else
         echo "  $i. ${FILE_MANAGERS[$i]}"
     done
     
-    choice=$(get_selection ${#FILE_MANAGERS[@]})
+    choice=$(get_selection "${#FILE_MANAGERS[@]}")
     
     if [ -n "$choice" ]; then
         FILE_MANAGER_CHOICE="${FILE_MANAGER_PATHS[$choice]}"
@@ -228,7 +240,7 @@ else
         echo "  $i. ${TERMINALS[$i]}"
     done
     
-    choice=$(get_selection ${#TERMINALS[@]})
+    choice=$(get_selection "${#TERMINALS[@]}")
     
     if [ -n "$choice" ]; then
         TERMINAL_CHOICE="${TERMINAL_PATHS[$choice]}"
