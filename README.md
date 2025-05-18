@@ -38,7 +38,7 @@ For Debian-based systems (Debian, Ubuntu, etc.), you can install DINA using the 
 
 2. Install the package and its dependencies:
    ```sh
-   sudo dpkg -i dina_1.0-1_amd64.deb
+   sudo dpkg -i dina_1.0.1-1_amd64.deb
    sudo apt-get install -f  # Installs dependencies
    ```
 
