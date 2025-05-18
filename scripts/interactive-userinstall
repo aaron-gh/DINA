@@ -9,58 +9,17 @@
 
 set -e
 
-# Enhanced accessibility options for dialog
-DIALOG_OPTS="--ascii-lines --tab-correct --visit-items"
-
-# Announce messages with speech-dispatcher for better screen reader support
-announce() {
-    if command -v spd-say >/dev/null 2>&1; then
-        # Use synchronous speech announcement for critical messages
-        if [ "$2" = "sync" ]; then
-            spd-say -w "$1"
-        else
-            spd-say "$1" &
-        fi
-        # Add a small pause to allow speech to complete
-        sleep 1
-    fi
-}
-
-# Function to determine if Orca is running
-is_orca_running() {
-    pgrep -x "orca" >/dev/null
-}
-
-# Check if Orca is running and provide audio feedback
-if is_orca_running; then
-    announce "DINA interactive setup is starting with Orca screen reader support enabled." "sync"
-else
-    echo "Orca screen reader is not running. Setup will continue but may not be fully accessible."
-    # Try to start Orca if it's installed
-    if command -v orca >/dev/null 2>&1; then
-        echo "Attempting to start Orca..."
-        orca &
-        sleep 3
-        if is_orca_running; then
-            announce "Orca screen reader has been started for accessibility." "sync"
-        fi
-    fi
-fi
+# Accessibility options for dialog - simplify display for screen readers
+DIALOG_OPTS="--ascii-lines --no-shadow"
 
 # Function to handle errors
 error_exit() {
-    message="Error: $1"
-    echo "$message" >&2
+    echo "Error: $1" >&2
     
-    # Announce the error for screen readers
-    if command -v spd-say >/dev/null 2>&1; then
-        spd-say "Error: $1"
-    fi
-    
-    # Show a dialog box with the error
+    # Show a simple dialog box with the error
     if command -v dialog >/dev/null 2>&1; then
-        dialog $DIALOG_OPTS --title "Error" --backtitle "Press Enter to exit" \
-               --msgbox "Error: $1\n\nPress Enter to exit." 10 70
+        dialog $DIALOG_OPTS --title "Error" \
+               --msgbox "Error: $1\n\nPress Enter to exit." 8 60
     fi
     
     exit 1
@@ -72,13 +31,10 @@ if ! command -v dialog >/dev/null 2>&1; then
 fi
 
 # Display welcome message
-announce "DINA Setup. Welcome to the interactive setup."
 dialog $DIALOG_OPTS --title "DINA Setup" \
-       --backtitle "Use arrow keys to navigate, Enter to select, Escape to cancel" \
        --msgbox "Welcome to the DINA interactive setup!\n\nThis wizard will help you configure your preferred applications.\n\nPress Enter to continue.\nPress Escape to cancel." \
-       12 70 || {
+       10 60 || {
     echo "Setup cancelled"
-    announce "Setup cancelled"
     exit 0
 }
 
@@ -111,11 +67,9 @@ check_browser "nyxt" || true
 
 if [ ${#BROWSERS[@]} -eq 0 ]; then
     # Allow user to specify path manually
-    announce "No browsers detected. Please enter the path to your browser."
     BROWSER_PATH=$(dialog $DIALOG_OPTS --title "Browser Selection" \
-                         --backtitle "Use Tab to navigate, Enter to confirm, Escape to cancel" \
                          --inputbox "No browsers detected. Please enter the path to your browser:" \
-                         10 70 \
+                         8 60 \
                          3>&1 1>&2 2>&3)
     
     if [ $? -ne 0 ] || [ -z "$BROWSER_PATH" ]; then
@@ -128,53 +82,27 @@ if [ ${#BROWSERS[@]} -eq 0 ]; then
         echo "Custom browser path set"
     fi
 else
-    # Create options for dialog
+    # Create options for dialog with simple numbered format
     OPTIONS=()
     for i in "${!BROWSERS[@]}"; do
         OPTIONS+=("$i" "${BROWSERS[$i]}")
     done
     
-    # Display browser selection dialog
-    announce "Browser selection. Select from $(${#BROWSERS[@]}) options. Use Up and Down arrow keys to navigate, Enter to select." "sync"
-    # Add a pause before showing the dialog for better screen reader experience
-    sleep 1
-    
-    # Modify menu to include number prefixes for improved screen reader feedback
-    NUMBERED_OPTIONS=()
-    for i in "${!OPTIONS[@]}"; do
-        # Skip even indices to preserve the menu structure
-        if [ $((i % 2)) -eq 0 ]; then
-            option_number=$(($i/2+1))
-            option_name="${OPTIONS[$i+1]}"
-            # Format: "Number. Name" - this improves screen reader reading
-            NUMBERED_OPTIONS+=("${OPTIONS[$i]}" "Option $option_number: $option_name")
-        fi
-    done
-    
-    # Add help text for improved accessibility
-    dialog $DIALOG_OPTS --title "Navigation Help" \
-           --msgbox "You will now select a web browser.\n\n- ARROW DOWN: Move to next option\n- ARROW UP: Move to previous option\n- ENTER: Select highlighted option\n- ESC: Cancel\n\nPress ENTER to continue." \
-           15 70
-    
     BROWSER_INDEX=$(dialog $DIALOG_OPTS --title "Browser Selection" \
-                          --backtitle "Use Up/Down arrows to navigate, Enter to select, Escape to cancel" \
-                          --menu "Select your preferred web browser (use Up/Down, then Enter):" \
-                          15 70 10 \
-                          "${NUMBERED_OPTIONS[@]}" \
+                          --menu "Select your preferred web browser:" \
+                          12 50 6 \
+                          "${OPTIONS[@]}" \
                           3>&1 1>&2 2>&3)
-                          
+    
     # Check the dialog return code
     BROWSER_RESULT=$?
     
-    # Announce the selection
     if [ $BROWSER_RESULT -eq 0 ] && [ -n "$BROWSER_INDEX" ]; then
         BROWSER_CHOICE="${BROWSER_PATHS[$BROWSER_INDEX]}"
         echo "${BROWSERS[$BROWSER_INDEX]} selected"
-        announce "You selected ${BROWSERS[$BROWSER_INDEX]}" "sync"
     else
         echo "No browser selected"
         BROWSER_CHOICE=""
-        announce "No browser selected" "sync"
     fi
 fi
 
@@ -204,11 +132,9 @@ check_file_manager "ranger" || true
 
 if [ ${#FILE_MANAGERS[@]} -eq 0 ]; then
     # Allow user to specify path manually
-    announce "No file managers detected. Please enter the path to your file manager."
     FILE_MANAGER_PATH=$(dialog $DIALOG_OPTS --title "File Manager Selection" \
-                              --backtitle "Use Tab to navigate, Enter to confirm, Escape to cancel" \
                               --inputbox "No file managers detected. Please enter the path to your file manager:" \
-                              10 70 \
+                              8 60 \
                               3>&1 1>&2 2>&3)
     
     if [ $? -ne 0 ] || [ -z "$FILE_MANAGER_PATH" ]; then
@@ -227,47 +153,21 @@ else
         OPTIONS+=("$i" "${FILE_MANAGERS[$i]}")
     done
     
-    # Display file manager selection dialog
-    announce "File manager selection. Select from $(${#FILE_MANAGERS[@]}) options. Use Up and Down arrow keys to navigate, Enter to select." "sync"
-    # Add a pause before showing the dialog for better screen reader experience
-    sleep 1
-    
-    # Modify menu to include number prefixes for improved screen reader feedback
-    NUMBERED_OPTIONS=()
-    for i in "${!OPTIONS[@]}"; do
-        # Skip even indices to preserve the menu structure
-        if [ $((i % 2)) -eq 0 ]; then
-            option_number=$(($i/2+1))
-            option_name="${OPTIONS[$i+1]}"
-            # Format: "Number. Name" - this improves screen reader reading
-            NUMBERED_OPTIONS+=("${OPTIONS[$i]}" "Option $option_number: $option_name")
-        fi
-    done
-    
-    # Add help text for improved accessibility
-    dialog $DIALOG_OPTS --title "Navigation Help" \
-           --msgbox "You will now select a file manager.\n\n- ARROW DOWN: Move to next option\n- ARROW UP: Move to previous option\n- ENTER: Select highlighted option\n- ESC: Cancel\n\nPress ENTER to continue." \
-           15 70
-    
     FILE_MANAGER_INDEX=$(dialog $DIALOG_OPTS --title "File Manager Selection" \
-                               --backtitle "Use Up/Down arrows to navigate, Enter to select, Escape to cancel" \
-                               --menu "Select your preferred file manager (use Up/Down, then Enter):" \
-                               15 70 10 \
-                               "${NUMBERED_OPTIONS[@]}" \
+                               --menu "Select your preferred file manager:" \
+                               12 50 6 \
+                               "${OPTIONS[@]}" \
                                3>&1 1>&2 2>&3)
                                
     # Check the dialog return code
     FILE_MANAGER_RESULT=$?
     
-    # Announce the selection
     if [ $FILE_MANAGER_RESULT -eq 0 ] && [ -n "$FILE_MANAGER_INDEX" ]; then
         FILE_MANAGER_CHOICE="${FILE_MANAGER_PATHS[$FILE_MANAGER_INDEX]}"
         echo "${FILE_MANAGERS[$FILE_MANAGER_INDEX]} selected"
-        announce "You selected ${FILE_MANAGERS[$FILE_MANAGER_INDEX]}" "sync"
     else
         echo "No file manager selected"
         FILE_MANAGER_CHOICE=""
-        announce "No file manager selected" "sync"
     fi
 fi
 
@@ -300,11 +200,9 @@ check_terminal "wezterm" || true
 
 if [ ${#TERMINALS[@]} -eq 0 ]; then
     # Allow user to specify path manually
-    announce "No terminals detected. Please enter the path to your terminal."
     TERMINAL_PATH=$(dialog $DIALOG_OPTS --title "Terminal Selection" \
-                         --backtitle "Use Tab to navigate, Enter to confirm, Escape to cancel" \
                          --inputbox "No terminals detected. Please enter the path to your terminal:" \
-                         10 70 \
+                         8 60 \
                          3>&1 1>&2 2>&3)
     
     if [ $? -ne 0 ] || [ -z "$TERMINAL_PATH" ]; then
@@ -323,77 +221,38 @@ else
         OPTIONS+=("$i" "${TERMINALS[$i]}")
     done
     
-    # Display terminal selection dialog
-    announce "Terminal selection. Select from $(${#TERMINALS[@]}) options. Use Up and Down arrow keys to navigate, Enter to select." "sync"
-    # Add a pause before showing the dialog for better screen reader experience
-    sleep 1
-    
-    # Modify menu to include number prefixes for improved screen reader feedback
-    NUMBERED_OPTIONS=()
-    for i in "${!OPTIONS[@]}"; do
-        # Skip even indices to preserve the menu structure
-        if [ $((i % 2)) -eq 0 ]; then
-            option_number=$(($i/2+1))
-            option_name="${OPTIONS[$i+1]}"
-            # Format: "Number. Name" - this improves screen reader reading
-            NUMBERED_OPTIONS+=("${OPTIONS[$i]}" "Option $option_number: $option_name")
-        fi
-    done
-    
-    # Add help text for improved accessibility
-    dialog $DIALOG_OPTS --title "Navigation Help" \
-           --msgbox "You will now select a terminal.\n\n- ARROW DOWN: Move to next option\n- ARROW UP: Move to previous option\n- ENTER: Select highlighted option\n- ESC: Cancel\n\nPress ENTER to continue." \
-           15 70
-    
     TERMINAL_INDEX=$(dialog $DIALOG_OPTS --title "Terminal Selection" \
-                           --backtitle "Use Up/Down arrows to navigate, Enter to select, Escape to cancel" \
-                           --menu "Select your preferred terminal (use Up/Down, then Enter):" \
-                           15 70 10 \
-                           "${NUMBERED_OPTIONS[@]}" \
+                           --menu "Select your preferred terminal:" \
+                           12 50 6 \
+                           "${OPTIONS[@]}" \
                            3>&1 1>&2 2>&3)
                            
     # Check the dialog return code
     TERMINAL_RESULT=$?
     
-    # Announce the selection
     if [ $TERMINAL_RESULT -eq 0 ] && [ -n "$TERMINAL_INDEX" ]; then
         TERMINAL_CHOICE="${TERMINAL_PATHS[$TERMINAL_INDEX]}"
         echo "${TERMINALS[$TERMINAL_INDEX]} selected"
-        announce "You selected ${TERMINALS[$TERMINAL_INDEX]}" "sync"
     else
         echo "No terminal selected"
         TERMINAL_CHOICE=""
-        announce "No terminal selected" "sync"
     fi
 fi
 
 # Confirmation dialog
-# Prepare a summary of selections
+# Format the display names for better readability
 BROWSER_NAME=$(basename "${BROWSER_CHOICE:-None}" 2>/dev/null || echo "None")
 FILE_MANAGER_NAME=$(basename "${FILE_MANAGER_CHOICE:-None}" 2>/dev/null || echo "None")
 TERMINAL_NAME=$(basename "${TERMINAL_CHOICE:-None}" 2>/dev/null || echo "None")
 
-# Announce confirmation clearly
-announce "Please confirm your selections." "sync"
-sleep 1
-announce "Browser: $BROWSER_NAME" "sync"
-sleep 1
-announce "File Manager: $FILE_MANAGER_NAME" "sync"
-sleep 1
-announce "Terminal: $TERMINAL_NAME" "sync"
-sleep 1
-announce "Press Enter to confirm these choices, or Escape to cancel." "sync"
-
 CONFIRM=$(dialog $DIALOG_OPTS --title "Confirm Selections" \
-                --backtitle "Press Enter for Yes, Escape for No" \
-                --yesno "Are these selections correct?\n\nBrowser: ${BROWSER_CHOICE:-None}\nFile Manager: ${FILE_MANAGER_CHOICE:-None}\nTerminal: ${TERMINAL_CHOICE:-None}\n\nPress Enter to confirm, Escape to cancel." \
-                12 70 \
+                --yesno "Are these selections correct?\n\nBrowser: ${BROWSER_NAME}\nFile Manager: ${FILE_MANAGER_NAME}\nTerminal: ${TERMINAL_NAME}\n\nPress Enter to confirm, Escape to cancel." \
+                10 60 \
                 3>&1 1>&2 2>&3)
 
 if [ $? -ne 0 ]; then
     echo "Setup cancelled"
     echo "Setup cancelled by user." >&2
-    announce "Setup cancelled by user."
     exit 0
 fi
 
@@ -522,26 +381,14 @@ fi
 # Success message
 echo "Setup completed successfully"
 
-# Prepare a summary of selections for the final announcement
+# Format the display names for better readability
 BROWSER_NAME=$(basename "${BROWSER_CHOICE:-None}" 2>/dev/null || echo "None")
 FILE_MANAGER_NAME=$(basename "${FILE_MANAGER_CHOICE:-None}" 2>/dev/null || echo "None")
 TERMINAL_NAME=$(basename "${TERMINAL_CHOICE:-None}" 2>/dev/null || echo "None")
 
-# Announce completion clearly
-announce "Setup completed successfully. Your preferences have been saved." "sync"
-sleep 1
-announce "Browser set to $BROWSER_NAME" "sync"
-sleep 1
-announce "File Manager set to $FILE_MANAGER_NAME" "sync"
-sleep 1
-announce "Terminal set to $TERMINAL_NAME" "sync"
-sleep 1
-announce "Press Enter to exit." "sync"
-
 dialog $DIALOG_OPTS --title "Setup Complete" \
-       --backtitle "Press Enter to exit" \
        --msgbox "DINA has been configured with your preferences.\n\nBrowser: ${BROWSER_NAME}\nFile Manager: ${FILE_MANAGER_NAME}\nTerminal: ${TERMINAL_NAME}\n\nPress Enter to exit." \
-       12 70
+       10 60
 
 # Reload sxhkd if it's running
 if pgrep -x "sxhkd" > /dev/null; then
