@@ -55,6 +55,7 @@
 #define HEIGHT(X)               ((X)->h + 2 * (X)->bw)
 #define TAGMASK                 ((1 << LENGTH(tags)) - 1)
 #define TEXTW(X)                (drw_fontset_getwidth(drw, (X)) + lrpad)
+#define SHCMD_NOTIFY(cmd)      { .v = (const char*[]){ "/bin/sh", "-c", cmd, NULL } }
 
 /* enums */
 enum { CurNormal, CurResize, CurMove, CurLast }; /* cursor */
@@ -183,6 +184,8 @@ static void maprequest(XEvent *e);
 static void monocle(Monitor *m);
 static void motionnotify(XEvent *e);
 static void movemouse(const Arg *arg);
+static void notify_tag(int tag);
+static void notify_window_move(int from_tag, int to_tag);
 static Client *nexttiled(Client *c);
 static void pop(Client *c);
 static void propertynotify(XEvent *e);
@@ -1110,6 +1113,32 @@ maprequest(XEvent *e)
 }
 
 void
+notify_tag(int tag)
+{
+	// Play a unique sound for tag switching
+	char cmd[256];
+	snprintf(cmd, sizeof(cmd), 
+		"play -nq synth 0.1 sine %d vol 0.3 & spd-say -r -50 \"Tag %d\"", 
+		400 + (tag * 50), tag);
+	
+	Arg arg = SHCMD_NOTIFY(cmd);
+	spawn(&arg);
+}
+
+void
+notify_window_move(int from_tag, int to_tag)
+{
+	// Play a sound for window movement between tags and announce it
+	char cmd[256];
+	snprintf(cmd, sizeof(cmd), 
+		"play -nq synth 0.1 sine %d sine %d vol 0.3 & spd-say -r -40 \"Window moved from tag %d to tag %d\"", 
+		400 + (from_tag * 50), 400 + (to_tag * 50), from_tag, to_tag);
+	
+	Arg arg = SHCMD_NOTIFY(cmd);
+	spawn(&arg);
+}
+
+void
 monocle(Monitor *m)
 {
 	unsigned int n = 0;
@@ -1669,7 +1698,30 @@ void
 tag(const Arg *arg)
 {
 	if (selmon->sel && arg->ui & TAGMASK) {
+		unsigned int oldtags = selmon->sel->tags;
 		selmon->sel->tags = arg->ui & TAGMASK;
+		
+		// Calculate tag numbers for notification
+		// Find the first (lowest) tag in the mask
+		int i, from_tag = 0, to_tag = 0;
+		for (i = 0; i < LENGTH(tags); i++) {
+			if (oldtags & (1 << i)) {
+				from_tag = i + 1;
+				break;
+			}
+		}
+		for (i = 0; i < LENGTH(tags); i++) {
+			if (arg->ui & (1 << i)) {
+				to_tag = i + 1;
+				break;
+			}
+		}
+		
+		// Only notify if the tag actually changed
+		if (oldtags != selmon->sel->tags) {
+			notify_window_move(from_tag, to_tag);
+		}
+		
 		focus(NULL);
 		arrange(selmon);
 	}
@@ -2054,9 +2106,27 @@ view(const Arg *arg)
 {
 	if ((arg->ui & TAGMASK) == selmon->tagset[selmon->seltags])
 		return;
+	
 	selmon->seltags ^= 1; /* toggle sel tagset */
-	if (arg->ui & TAGMASK)
+	
+	if (arg->ui & TAGMASK) {
 		selmon->tagset[selmon->seltags] = arg->ui & TAGMASK;
+		
+		// Find the tag number (1-based) for notification
+		int i, tag_num = 0;
+		for (i = 0; i < LENGTH(tags); i++) {
+			if (arg->ui & (1 << i)) {
+				tag_num = i + 1;
+				break;
+			}
+		}
+		
+		// Notify about tag change
+		if (tag_num > 0) {
+			notify_tag(tag_num);
+		}
+	}
+	
 	focus(NULL);
 	arrange(selmon);
 }
