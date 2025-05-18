@@ -72,9 +72,9 @@ make interactive-userinstall
 
 This will:
 - Detect installed browsers, file managers, and terminals
-- Let you select your preferred applications using arrow keys
+- Let you select your preferred applications by choosing numbers from a simple menu
 - Update keybindings for Super+W (browser), Super+F (file manager), and Super+Return (terminal)
-- Fully accessible with dialog menus for screen reader users
+- Fully accessible text-based interface designed for screen reader users
 
 ### Building Debian Packages
 
@@ -131,7 +131,7 @@ You should have the following packages installed:
 
 - `libx11`, `libxinerama`, `libxft`
 - `orca`, `yad`, `sxhkd`, `sox`, `acpi`, `speech-dispatcher`
-- `dialog` (for interactive setup)
+- `python3` (for interactive setup)
 - A terminal emulator like `alacritty`, `foot`, or `xterm`
 
 ### Build Dependencies

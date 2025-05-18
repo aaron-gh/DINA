@@ -1,403 +1,302 @@
-#!/bin/bash
+#!/usr/bin/env python3
 #
-# interactive-userinstall - Setup user preferences for DINA
-#
-# This script detects installed applications and allows the user to
-# select their preferred browsers, file managers, and terminals.
-# It then updates sxhkdrc configuration with the selected preferences.
-# Pure text-based interface for maximum accessibility.
+# interactive-userinstall - Simple menu-based setup for DINA user preferences
 
-set -e
+import os
+import sys
+import shutil
+import subprocess
+import re
+import signal
 
-# Function to handle errors
-error_exit() {
-    echo "Error: $1" >&2
-    exit 1
-}
+# Class for text colors
+class Colors:
+    HEADER = '\033[95m'
+    BLUE = '\033[94m'
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    RED = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
 
-# Ultra simple selection function
-get_selection() {
-    local max="$1"
-    local user_input
+# Helper functions
+def print_header(text):
+    """Print a formatted header."""
+    print(f"\n{Colors.HEADER}{Colors.BOLD}{text}{Colors.ENDC}")
+
+def print_info(text):
+    """Print an info message."""
+    print(f"{Colors.BLUE}➜ {text}{Colors.ENDC}")
+
+def print_success(text):
+    """Print a success message."""
+    print(f"{Colors.GREEN}✓ {text}{Colors.ENDC}")
+
+def print_warning(text):
+    """Print a warning message."""
+    print(f"{Colors.YELLOW}⚠ {text}{Colors.ENDC}")
+
+def print_error(text):
+    """Print an error message."""
+    print(f"{Colors.RED}✗ {text}{Colors.ENDC}", file=sys.stderr)
+
+def ask_yes_no(question):
+    """Ask a yes/no question and return the result."""
+    while True:
+        response = input(f"{question} (y/n): ").lower()
+        if response in ['y', 'yes']:
+            return True
+        elif response in ['n', 'no']:
+            return False
+        print("Please answer y or n.")
+
+def select_from_menu(items):
+    """Display a menu and ask user to select an option."""
+    if not items:
+        return None
     
-    echo
-    echo -n "Type number and press Enter: "
-    read user_input
+    # If only one item, select it automatically
+    if len(items) == 1:
+        print_info(f"Auto-selecting the only option: {items[0][0]}")
+        return items[0]
     
-    # Manual validation to avoid any shell arithmetic errors
-    if [ -z "$user_input" ]; then
-        echo ""
+    # Print menu options
+    print_info("Available options:")
+    for i, (name, path) in enumerate(items, 1):
+        print(f"  {i}) {name}")
+    
+    # Get user selection
+    while True:
+        try:
+            choice = input(f"Select an option (1-{len(items)}): ")
+            idx = int(choice) - 1
+            if 0 <= idx < len(items):
+                return items[idx]
+            print(f"Please enter a number between 1 and {len(items)}.")
+        except ValueError:
+            print("Please enter a valid number.")
+
+def find_executables(names):
+    """Find executable files in PATH."""
+    found = []
+    for name in names:
+        try:
+            path = shutil.which(name)
+            if path:
+                found.append((name, path))
+        except Exception:
+            pass
+    return found
+
+def update_sxhkdrc(key_binding, command_path):
+    """Update sxhkdrc with the new key binding."""
+    if not command_path:
+        return False
+    
+    # Set up paths
+    sxhkdrc = os.path.expanduser("~/.config/sxhkd/sxhkdrc")
+    sxhkd_dir = os.path.dirname(sxhkdrc)
+    
+    # Create directory if needed
+    if not os.path.exists(sxhkd_dir):
+        os.makedirs(sxhkd_dir)
+    
+    # Find config file
+    if not os.path.exists(sxhkdrc):
+        # Try to find it in the DINA directory
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        dina_dir = os.path.dirname(script_dir)
+        source_config = os.path.join(dina_dir, "sxhkd", "sxhkdrc")
+        
+        if os.path.exists(source_config):
+            shutil.copy(source_config, sxhkdrc)
+        else:
+            print_error(f"Could not find sxhkdrc file.")
+            return False
+    
+    # Backup config
+    backup_file = f"{sxhkdrc}.bak"
+    shutil.copy(sxhkdrc, backup_file)
+    
+    # Read the existing config
+    with open(sxhkdrc, 'r') as f:
+        lines = f.readlines()
+    
+    # Check if the key binding already exists
+    found = False
+    for i in range(len(lines)):
+        if lines[i].strip() == key_binding:
+            # Key binding found, update the next line
+            if i + 1 < len(lines):
+                lines[i + 1] = f"\t{command_path}\n"
+                found = True
+                break
+    
+    # If not found, append it
+    if not found:
+        lines.append(f"\n{key_binding}\n\t{command_path}\n")
+    
+    # Write the updated config
+    with open(sxhkdrc, 'w') as f:
+        f.writelines(lines)
+    
+    return True
+
+def reload_sxhkd():
+    """Reload sxhkd if it's running."""
+    try:
+        # Check if sxhkd is running
+        subprocess.run(["pgrep", "-x", "sxhkd"], check=True, stdout=subprocess.PIPE)
+        # Send the reload signal
+        subprocess.run(["pkill", "-USR1", "-x", "sxhkd"])
+        return True
+    except subprocess.CalledProcessError:
+        return False
+    except Exception as e:
+        print_warning(f"Error reloading sxhkd: {e}")
+        return False
+
+def main():
+    # Show welcome message
+    print_header("DINA Interactive Setup")
+    print("======================")
+    print("This will configure your preferred applications for DINA.")
+    print()
+    
+    # Confirm setup
+    if not ask_yes_no("Continue with setup?"):
+        print("Setup cancelled")
         return
-    fi
     
-    # Check if input is a number
-    case "$user_input" in
-        ''|*[!0-9]*) echo ""; return ;;
-    esac
+    # Discover applications
+    print_info("Searching for installed applications...")
     
-    # Check if number is in range
-    if [ "$user_input" -lt "$max" ]; then
-        echo "$user_input"
-    else
-        echo ""
-    fi
-}
-
-# Text-based yes/no question
-ask_yes_no() {
-    local question="$1"
+    # Define application types to look for
+    app_types = {
+        "browsers": [
+            "firefox", "chromium", "chromium-browser", "google-chrome", 
+            "brave", "vivaldi", "opera", "qutebrowser", "falkon", 
+            "epiphany", "midori", "nyxt"
+        ],
+        "file_managers": [
+            "nautilus", "thunar", "pcmanfm", "dolphin", "nemo", 
+            "caja", "spacefm", "krusader", "ranger"
+        ],
+        "terminals": [
+            "alacritty", "xterm", "urxvt", "kitty", "gnome-terminal", 
+            "konsole", "terminator", "xfce4-terminal", "tilix", 
+            "st", "foot", "wezterm"
+        ]
+    }
     
-    while true; do
-        echo
-        echo "$question"
-        echo -n "Enter y/n: "
-        read answer
-        case "$answer" in
-            [Yy]* ) return 0 ;;
-            [Nn]* ) return 1 ;;
-            * ) echo "Please answer y or n.";;
-        esac
-    done
-}
-
-# Welcome message
-echo "DINA Interactive Setup"
-echo "======================"
-echo "This will configure your preferred applications for DINA."
-echo
-
-if ! ask_yes_no "Continue with setup?"; then
-    echo "Setup cancelled"
-    exit 0
-fi
-
-# Detect installed browsers
-BROWSERS=()
-BROWSER_PATHS=()
-
-check_browser() {
-    if command -v "$1" >/dev/null 2>&1; then
-        BROWSERS+=("$1")
-        BROWSER_PATHS+=("$(command -v "$1")")
-        return 0
-    fi
-    return 1
-}
-
-# Check for common browsers
-check_browser "firefox" || true
-check_browser "chromium" || true
-check_browser "chromium-browser" || true
-check_browser "google-chrome" || true
-check_browser "brave" || true
-check_browser "vivaldi" || true
-check_browser "opera" || true
-check_browser "qutebrowser" || true
-check_browser "falkon" || true
-check_browser "epiphany" || true
-check_browser "midori" || true
-check_browser "nyxt" || true
-
-if [ ${#BROWSERS[@]} -eq 0 ]; then
-    # Allow user to specify path manually
-    echo
-    echo "No browsers detected."
-    echo -n "Enter path to browser (or press Enter to skip): "
-    read BROWSER_PATH
+    # Find applications
+    found_apps = {
+        app_type: find_executables(apps)
+        for app_type, apps in app_types.items()
+    }
     
-    if [ -z "$BROWSER_PATH" ]; then
-        echo "No browser selected"
-        BROWSER_CHOICE=""
-    elif [ ! -x "$BROWSER_PATH" ]; then
-        error_exit "The specified browser path is not executable."
-    else
-        BROWSER_CHOICE="$BROWSER_PATH"
-        echo "Custom browser path set"
-    fi
-else
-    # Display browser selection menu
-    echo "Found ${#BROWSERS[@]} browsers:"
-    for i in "${!BROWSERS[@]}"; do
-        echo "  $i. ${BROWSERS[$i]}"
-    done
+    # Select applications
+    selections = {}
     
-    choice=$(get_selection "${#BROWSERS[@]}")
+    # Browser selection
+    print_header("Browser Selection")
+    browsers = found_apps["browsers"]
+    if browsers:
+        selection = select_from_menu(browsers)
+        if selection:
+            name, path = selection
+            selections["browser"] = (name, path)
+            print_success(f"{name} selected as browser")
+    else:
+        print_warning("No browsers detected.")
+        if ask_yes_no("Would you like to enter a custom browser path?"):
+            custom_path = input("Enter path to browser: ")
+            if os.path.isfile(custom_path) and os.access(custom_path, os.X_OK):
+                name = os.path.basename(custom_path)
+                selections["browser"] = (name, custom_path)
+                print_success(f"Custom browser path set: {custom_path}")
+            else:
+                print_error("Invalid path, skipping browser selection")
     
-    if [ -n "$choice" ]; then
-        BROWSER_CHOICE="${BROWSER_PATHS[$choice]}"
-        echo "${BROWSERS[$choice]} selected as browser"
-    else
-        echo "No browser selected"
-        BROWSER_CHOICE=""
-    fi
-fi
-
-# Detect installed file managers
-FILE_MANAGERS=()
-FILE_MANAGER_PATHS=()
-
-check_file_manager() {
-    if command -v "$1" >/dev/null 2>&1; then
-        FILE_MANAGERS+=("$1")
-        FILE_MANAGER_PATHS+=("$(command -v "$1")")
-        return 0
-    fi
-    return 1
-}
-
-# Check for common file managers
-check_file_manager "nautilus" || true
-check_file_manager "thunar" || true
-check_file_manager "pcmanfm" || true
-check_file_manager "dolphin" || true
-check_file_manager "nemo" || true
-check_file_manager "caja" || true
-check_file_manager "spacefm" || true
-check_file_manager "krusader" || true
-check_file_manager "ranger" || true
-
-if [ ${#FILE_MANAGERS[@]} -eq 0 ]; then
-    # Allow user to specify path manually
-    echo
-    echo "No file managers detected."
-    echo -n "Enter path to file manager (or press Enter to skip): "
-    read FILE_MANAGER_PATH
+    # File manager selection
+    print_header("File Manager Selection")
+    file_managers = found_apps["file_managers"]
+    if file_managers:
+        selection = select_from_menu(file_managers)
+        if selection:
+            name, path = selection
+            selections["file_manager"] = (name, path)
+            print_success(f"{name} selected as file manager")
+    else:
+        print_warning("No file managers detected.")
+        if ask_yes_no("Would you like to enter a custom file manager path?"):
+            custom_path = input("Enter path to file manager: ")
+            if os.path.isfile(custom_path) and os.access(custom_path, os.X_OK):
+                name = os.path.basename(custom_path)
+                selections["file_manager"] = (name, custom_path)
+                print_success(f"Custom file manager path set: {custom_path}")
+            else:
+                print_error("Invalid path, skipping file manager selection")
     
-    if [ -z "$FILE_MANAGER_PATH" ]; then
-        echo "No file manager selected"
-        FILE_MANAGER_CHOICE=""
-    elif [ ! -x "$FILE_MANAGER_PATH" ]; then
-        error_exit "The specified file manager path is not executable."
-    else
-        FILE_MANAGER_CHOICE="$FILE_MANAGER_PATH"
-        echo "Custom file manager path set"
-    fi
-else
-    # Display file manager selection menu
-    echo "Found ${#FILE_MANAGERS[@]} file managers:"
-    for i in "${!FILE_MANAGERS[@]}"; do
-        echo "  $i. ${FILE_MANAGERS[$i]}"
-    done
+    # Terminal selection
+    print_header("Terminal Selection")
+    terminals = found_apps["terminals"]
+    if terminals:
+        selection = select_from_menu(terminals)
+        if selection:
+            name, path = selection
+            selections["terminal"] = (name, path)
+            print_success(f"{name} selected as terminal")
+    else:
+        print_warning("No terminals detected.")
+        if ask_yes_no("Would you like to enter a custom terminal path?"):
+            custom_path = input("Enter path to terminal: ")
+            if os.path.isfile(custom_path) and os.access(custom_path, os.X_OK):
+                name = os.path.basename(custom_path)
+                selections["terminal"] = (name, custom_path)
+                print_success(f"Custom terminal path set: {custom_path}")
+            else:
+                print_error("Invalid path, skipping terminal selection")
     
-    choice=$(get_selection "${#FILE_MANAGERS[@]}")
+    # Show selections summary
+    print_header("Selected Applications")
+    print(f"Browser: {selections.get('browser', (None, None))[0] or 'None'}")
+    print(f"File Manager: {selections.get('file_manager', (None, None))[0] or 'None'}")
+    print(f"Terminal: {selections.get('terminal', (None, None))[0] or 'None'}")
+    print()
     
-    if [ -n "$choice" ]; then
-        FILE_MANAGER_CHOICE="${FILE_MANAGER_PATHS[$choice]}"
-        echo "${FILE_MANAGERS[$choice]} selected as file manager"
-    else
-        echo "No file manager selected"
-        FILE_MANAGER_CHOICE=""
-    fi
-fi
-
-# Detect installed terminals
-TERMINALS=()
-TERMINAL_PATHS=()
-
-check_terminal() {
-    if command -v "$1" >/dev/null 2>&1; then
-        TERMINALS+=("$1")
-        TERMINAL_PATHS+=("$(command -v "$1")")
-        return 0
-    fi
-    return 1
-}
-
-# Check for common terminals
-check_terminal "alacritty" || true
-check_terminal "xterm" || true
-check_terminal "urxvt" || true
-check_terminal "kitty" || true
-check_terminal "gnome-terminal" || true
-check_terminal "konsole" || true
-check_terminal "terminator" || true
-check_terminal "xfce4-terminal" || true
-check_terminal "tilix" || true
-check_terminal "st" || true
-check_terminal "foot" || true
-check_terminal "wezterm" || true
-
-if [ ${#TERMINALS[@]} -eq 0 ]; then
-    # Allow user to specify path manually
-    echo
-    echo "No terminals detected."
-    echo -n "Enter path to terminal (or press Enter to skip): "
-    read TERMINAL_PATH
+    # Confirm selections
+    if not ask_yes_no("Confirm these selections?"):
+        print("Setup cancelled")
+        return
     
-    if [ -z "$TERMINAL_PATH" ]; then
-        echo "No terminal selected"
-        TERMINAL_CHOICE=""
-    elif [ ! -x "$TERMINAL_PATH" ]; then
-        error_exit "The specified terminal path is not executable."
-    else
-        TERMINAL_CHOICE="$TERMINAL_PATH"
-        echo "Custom terminal path set"
-    fi
-else
-    # Display terminal selection menu
-    echo "Found ${#TERMINALS[@]} terminals:"
-    for i in "${!TERMINALS[@]}"; do
-        echo "  $i. ${TERMINALS[$i]}"
-    done
+    # Update configuration
+    print_header("Updating Configuration")
     
-    choice=$(get_selection "${#TERMINALS[@]}")
+    # Update key bindings
+    key_bindings = {
+        "browser": "super + w",
+        "file_manager": "super + f",
+        "terminal": "super + Return"
+    }
     
-    if [ -n "$choice" ]; then
-        TERMINAL_CHOICE="${TERMINAL_PATHS[$choice]}"
-        echo "${TERMINALS[$choice]} selected as terminal"
-    else
-        echo "No terminal selected"
-        TERMINAL_CHOICE=""
-    fi
-fi
-
-# Confirmation dialog with minimal text
-BROWSER_NAME=$(basename "${BROWSER_CHOICE:-None}" 2>/dev/null || echo "None")
-FILE_MANAGER_NAME=$(basename "${FILE_MANAGER_CHOICE:-None}" 2>/dev/null || echo "None")
-TERMINAL_NAME=$(basename "${TERMINAL_CHOICE:-None}" 2>/dev/null || echo "None")
-
-echo
-echo "Your selections:"
-echo "Browser: $BROWSER_NAME"
-echo "File Manager: $FILE_MANAGER_NAME"
-echo "Terminal: $TERMINAL_NAME"
-echo
-
-if ! ask_yes_no "Confirm these selections?"; then
-    echo "Setup cancelled"
-    exit 0
-fi
-
-echo "Updating configuration..."
-
-# Path to sxhkdrc
-SXHKDRC="$HOME/.config/sxhkd/sxhkdrc"
-# Also check in DINA directory
-if [ ! -f "$SXHKDRC" ]; then
-    # Get the script's directory
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    # Go up one directory (assuming script is in scripts/)
-    DINA_DIR="$(dirname "$SCRIPT_DIR")"
-    SXHKDRC="$DINA_DIR/sxhkd/sxhkdrc"
-fi
-
-# Create ~/.config/sxhkd directory if it doesn't exist
-if [ ! -d "$HOME/.config/sxhkd" ]; then
-    mkdir -p "$HOME/.config/sxhkd"
-fi
-
-# If sxhkdrc doesn't exist in user's config, copy it from DINA
-if [ ! -f "$HOME/.config/sxhkd/sxhkdrc" ]; then
-    # Get the script's directory if not already set
-    if [ -z "$SCRIPT_DIR" ]; then
-        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-        DINA_DIR="$(dirname "$SCRIPT_DIR")"
-    fi
+    updated = False
+    for app_type, binding in key_bindings.items():
+        if app_type in selections:
+            name, path = selections[app_type]
+            if update_sxhkdrc(binding, path):
+                print_success(f"{app_type.replace('_', ' ').title()} shortcut set to {binding}")
+                updated = True
     
-    if [ -f "$DINA_DIR/sxhkd/sxhkdrc" ]; then
-        cp "$DINA_DIR/sxhkd/sxhkdrc" "$HOME/.config/sxhkd/sxhkdrc"
-        SXHKDRC="$HOME/.config/sxhkd/sxhkdrc"
-    else
-        error_exit "Could not find sxhkdrc file."
-    fi
-fi
+    # Reload sxhkd if needed
+    if updated and reload_sxhkd():
+        print_success("Shortcuts reloaded")
+    
+    print_header("Setup Completed Successfully!")
 
-# Make a backup of the original file
-cp "$SXHKDRC" "${SXHKDRC}.bak"
-
-# Update sxhkdrc with the selected applications
-if [ -n "$BROWSER_CHOICE" ]; then
-    # Check if browser binding already exists
-    if grep -q "^super + w" "$SXHKDRC"; then
-        # Get the line number of the binding
-        LINE_NUM=$(grep -n "^super + w" "$SXHKDRC" | cut -d: -f1)
-        
-        # Create a temporary file that replaces the binding
-        {
-            # Print file up to the binding line
-            head -n $((LINE_NUM-1)) "$SXHKDRC"
-            
-            # Add the new binding
-            echo "super + w"
-            echo "	$BROWSER_CHOICE"
-            
-            # Print the rest of the file, skipping the old binding and command
-            tail -n +$((LINE_NUM+2)) "$SXHKDRC"
-        } > "${SXHKDRC}.tmp"
-        
-        # Replace the original file
-        mv "${SXHKDRC}.tmp" "$SXHKDRC"
-    else
-        # Add new binding
-        echo -e "\nsuper + w\n\t$BROWSER_CHOICE" >> "$SXHKDRC"
-    fi
-    echo "Browser shortcut set to Super+W"
-fi
-
-if [ -n "$FILE_MANAGER_CHOICE" ]; then
-    # Check if file manager binding already exists
-    if grep -q "^super + f" "$SXHKDRC"; then
-        # Get the line number of the binding
-        LINE_NUM=$(grep -n "^super + f" "$SXHKDRC" | cut -d: -f1)
-        
-        # Create a temporary file that replaces the binding
-        {
-            # Print file up to the binding line
-            head -n $((LINE_NUM-1)) "$SXHKDRC"
-            
-            # Add the new binding
-            echo "super + f"
-            echo "	$FILE_MANAGER_CHOICE"
-            
-            # Print the rest of the file, skipping the old binding and command
-            tail -n +$((LINE_NUM+2)) "$SXHKDRC"
-        } > "${SXHKDRC}.tmp"
-        
-        # Replace the original file
-        mv "${SXHKDRC}.tmp" "$SXHKDRC"
-    else
-        # Add new binding
-        echo -e "\nsuper + f\n\t$FILE_MANAGER_CHOICE" >> "$SXHKDRC"
-    fi
-    echo "File manager shortcut set to Super+F"
-fi
-
-if [ -n "$TERMINAL_CHOICE" ]; then
-    # Check if terminal binding already exists
-    if grep -q "^super + Return" "$SXHKDRC"; then
-        # Get the line number of the binding
-        LINE_NUM=$(grep -n "^super + Return" "$SXHKDRC" | cut -d: -f1)
-        
-        # Create a temporary file that replaces the binding
-        {
-            # Print file up to the binding line
-            head -n $((LINE_NUM-1)) "$SXHKDRC"
-            
-            # Add the new binding
-            echo "super + Return"
-            echo "	$TERMINAL_CHOICE"
-            
-            # Print the rest of the file, skipping the old binding and command
-            tail -n +$((LINE_NUM+2)) "$SXHKDRC"
-        } > "${SXHKDRC}.tmp"
-        
-        # Replace the original file
-        mv "${SXHKDRC}.tmp" "$SXHKDRC"
-    else
-        # Add new binding
-        echo -e "\nsuper + Return\n\t$TERMINAL_CHOICE" >> "$SXHKDRC"
-    fi
-    echo "Terminal shortcut set to Super+Return"
-fi
-
-# Success message
-echo
-echo "Setup completed successfully"
-
-# Reload sxhkd if it's running
-if pgrep -x "sxhkd" > /dev/null; then
-    pkill -USR1 -x sxhkd
-    echo "Shortcuts reloaded"
-fi
-
-exit 0
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\nSetup cancelled by user")
+        sys.exit(1)
