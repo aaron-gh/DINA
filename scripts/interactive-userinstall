@@ -45,7 +45,7 @@ else
             announce "Orca screen reader has been started for accessibility." "sync"
         fi
     fi
-}
+fi
 
 # Function to handle errors
 error_exit() {
