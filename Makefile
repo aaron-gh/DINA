@@ -32,7 +32,11 @@ userinstall:
 interactive-userinstall:
 	# Run the interactive userinstall script
 	@echo "Running interactive setup..."
-	@${HOME}/.local/bin/interactive-userinstall || scripts/interactive-userinstall
+	@if [ -x "${HOME}/.local/bin/interactive-userinstall" ]; then \
+		${HOME}/.local/bin/interactive-userinstall; \
+	else \
+		./scripts/interactive-userinstall; \
+	fi
 
 uninstall:
 	rm -f ${PREFIX}/bin/DINA
