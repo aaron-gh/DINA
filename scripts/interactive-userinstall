@@ -32,7 +32,7 @@ dialog --title "DINA Setup" \
 BROWSERS=()
 BROWSER_PATHS=()
 
-check_browser() {
+echo "Testing for browser: $1"; check_browser() {
     if command -v "$1" >/dev/null 2>&1; then
         BROWSERS+=("$1")
         BROWSER_PATHS+=("$(command -v "$1")")
@@ -98,7 +98,7 @@ fi
 FILE_MANAGERS=()
 FILE_MANAGER_PATHS=()
 
-check_file_manager() {
+echo "Testing for file manager: $1"; check_file_manager() {
     if command -v "$1" >/dev/null 2>&1; then
         FILE_MANAGERS+=("$1")
         FILE_MANAGER_PATHS+=("$(command -v "$1")")
@@ -161,7 +161,7 @@ fi
 TERMINALS=()
 TERMINAL_PATHS=()
 
-check_terminal() {
+echo "Testing for terminal: $1"; check_terminal() {
     if command -v "$1" >/dev/null 2>&1; then
         TERMINALS+=("$1")
         TERMINAL_PATHS+=("$(command -v "$1")")
@@ -276,8 +276,12 @@ cp "$SXHKDRC" "${SXHKDRC}.bak"
 if [ -n "$BROWSER_CHOICE" ]; then
     # Check if browser binding already exists
     if grep -q "^super + w" "$SXHKDRC"; then
-        # Update existing binding
-        sed -i "s|^super + w.*|super + w\n\t$BROWSER_CHOICE|" "$SXHKDRC"
+        # Get the line number of the binding
+        LINE_NUM=$(grep -n "^super + w" "$SXHKDRC" | cut -d: -f1)
+        # Remove the old binding (line and the line after it)
+        sed -i "${LINE_NUM}d;${LINE_NUM}d" "$SXHKDRC"
+        # Add the new binding at the same location
+        sed -i "${LINE_NUM}i\\super + w\\n\\t$BROWSER_CHOICE" "$SXHKDRC"
     else
         # Add new binding
         echo -e "\nsuper + w\n\t$BROWSER_CHOICE" >> "$SXHKDRC"
@@ -288,8 +292,12 @@ fi
 if [ -n "$FILE_MANAGER_CHOICE" ]; then
     # Check if file manager binding already exists
     if grep -q "^super + f" "$SXHKDRC"; then
-        # Update existing binding
-        sed -i "s|^super + f.*|super + f\n\t$FILE_MANAGER_CHOICE|" "$SXHKDRC"
+        # Get the line number of the binding
+        LINE_NUM=$(grep -n "^super + f" "$SXHKDRC" | cut -d: -f1)
+        # Remove the old binding (line and the line after it)
+        sed -i "${LINE_NUM}d;${LINE_NUM}d" "$SXHKDRC"
+        # Add the new binding at the same location
+        sed -i "${LINE_NUM}i\\super + f\\n\\t$FILE_MANAGER_CHOICE" "$SXHKDRC"
     else
         # Add new binding
         echo -e "\nsuper + f\n\t$FILE_MANAGER_CHOICE" >> "$SXHKDRC"
@@ -300,8 +308,12 @@ fi
 if [ -n "$TERMINAL_CHOICE" ]; then
     # Check if terminal binding already exists
     if grep -q "^super + Return" "$SXHKDRC"; then
-        # Update existing binding
-        sed -i "s|^super + Return.*|super + Return\n\t$TERMINAL_CHOICE|" "$SXHKDRC"
+        # Get the line number of the binding
+        LINE_NUM=$(grep -n "^super + Return" "$SXHKDRC" | cut -d: -f1)
+        # Remove the old binding (line and the line after it)
+        sed -i "${LINE_NUM}d;${LINE_NUM}d" "$SXHKDRC"
+        # Add the new binding at the same location
+        sed -i "${LINE_NUM}i\\super + Return\\n\\t$TERMINAL_CHOICE" "$SXHKDRC"
     else
         # Add new binding
         echo -e "\nsuper + Return\n\t$TERMINAL_CHOICE" >> "$SXHKDRC"
