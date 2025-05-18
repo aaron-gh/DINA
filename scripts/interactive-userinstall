@@ -15,19 +15,20 @@ error_exit() {
     exit 1
 }
 
-# Text-based menu function
-text_menu() {
-    local title="$1"
-    shift
-    local options=("$@")
-    local num_options=${#options[@]}
+# Simple direct selection function
+get_selection() {
+    local max=$1
     
     echo
-    echo -n "Enter selection (0-$((num_options-1))) or just press Enter to skip: "
-    read choice
+    echo -n "Type number and press Enter: "
+    read user_input
     
-    # Return the choice
-    echo "$choice"
+    # Very basic validation
+    if [[ "$user_input" =~ ^[0-9]+$ ]] && [ "$user_input" -lt "$max" ]; then
+        echo "$user_input"
+    else
+        echo ""
+    fi
 }
 
 # Text-based yes/no question
@@ -108,14 +109,14 @@ else
         echo "  $i. ${BROWSERS[$i]}"
     done
     
-    choice=$(text_menu "Browser Selection" "${BROWSERS[@]}")
+    choice=$(get_selection ${#BROWSERS[@]})
     
-    if [ -z "$choice" ] || ! [[ "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -ge ${#BROWSERS[@]} ]; then
+    if [ -n "$choice" ]; then
+        BROWSER_CHOICE="${BROWSER_PATHS[$choice]}"
+        echo "${BROWSERS[$choice]} selected as browser"
+    else
         echo "No browser selected"
         BROWSER_CHOICE=""
-    else
-        BROWSER_CHOICE="${BROWSER_PATHS[$choice]}"
-        echo "${BROWSERS[$choice]} selected"
     fi
 fi
 
@@ -166,14 +167,14 @@ else
         echo "  $i. ${FILE_MANAGERS[$i]}"
     done
     
-    choice=$(text_menu "File Manager Selection" "${FILE_MANAGERS[@]}")
+    choice=$(get_selection ${#FILE_MANAGERS[@]})
     
-    if [ -z "$choice" ] || ! [[ "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -ge ${#FILE_MANAGERS[@]} ]; then
+    if [ -n "$choice" ]; then
+        FILE_MANAGER_CHOICE="${FILE_MANAGER_PATHS[$choice]}"
+        echo "${FILE_MANAGERS[$choice]} selected as file manager"
+    else
         echo "No file manager selected"
         FILE_MANAGER_CHOICE=""
-    else
-        FILE_MANAGER_CHOICE="${FILE_MANAGER_PATHS[$choice]}"
-        echo "${FILE_MANAGERS[$choice]} selected"
     fi
 fi
 
@@ -227,14 +228,14 @@ else
         echo "  $i. ${TERMINALS[$i]}"
     done
     
-    choice=$(text_menu "Terminal Selection" "${TERMINALS[@]}")
+    choice=$(get_selection ${#TERMINALS[@]})
     
-    if [ -z "$choice" ] || ! [[ "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -ge ${#TERMINALS[@]} ]; then
+    if [ -n "$choice" ]; then
+        TERMINAL_CHOICE="${TERMINAL_PATHS[$choice]}"
+        echo "${TERMINALS[$choice]} selected as terminal"
+    else
         echo "No terminal selected"
         TERMINAL_CHOICE=""
-    else
-        TERMINAL_CHOICE="${TERMINAL_PATHS[$choice]}"
-        echo "${TERMINALS[$choice]} selected"
     fi
 fi
 
