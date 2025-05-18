@@ -30,7 +30,7 @@ DINA removes all visual overhead and focuses on **speech-based**, **keyboard-onl
 
 ## 🧱 Installation
 
-### 1. Build and install the `dwm` binary (requires `sudo`):
+### 1. Build and install the `DINA` binary (requires `sudo`):
 
 ```sh
 make
