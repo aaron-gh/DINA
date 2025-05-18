@@ -1,0 +1,19 @@
+#!/bin/bash
+
+apps=$(find /usr/share/applications ~/.local/share/applications -name '*.desktop' 2>/dev/null)
+declare -A appmap
+
+while IFS= read -r desktop; do
+    name=$(grep -m1 '^Name=' "$desktop" | cut -d= -f2-)
+    exec=$(grep -m1 '^Exec=' "$desktop" | cut -d= -f2- | sed -E 's/ *%[a-zA-Z]//g' | xargs)
+    [ -n "$name" ] && [ -n "$exec" ] && [ -z "${appmap["$name"]}" ] && appmap["$name"]="$exec"
+done <<< "$apps"
+
+entries=$(for name in "${!appmap[@]}"; do echo "$name|${appmap[$name]}"; done | sort -f)
+
+selection=$(echo "$entries" | yad --list --title="Applications" --width=600 --height=400 \
+    --center --column="Application" --column="Command" --hide-column=2 \
+    --search-column=1 --separator="|" --no-markup)
+
+cmd=$(echo "$selection" | cut -d'|' -f2)
+[ -n "$cmd" ] && nohup $cmd >/dev/null 2>&1 &

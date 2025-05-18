@@ -1,0 +1,15 @@
+#!/bin/bash
+
+THRESHOLD=15
+
+while true; do
+    BATTERY=$(acpi -b | grep -P -o '[0-9]+(?=%)')
+    STATUS=$(acpi -b | awk '{print $3}' | tr -d ',')
+
+    if [ "$STATUS" = "Discharging" ] && [ "$BATTERY" -le "$THRESHOLD" ]; then
+        notify-send -u critical "Battery low" "Battery is at ${BATTERY}%!"
+        spd-say "Battery warning. ${BATTERY} percent."
+    fi
+
+    sleep 60
+done

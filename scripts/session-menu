@@ -1,0 +1,14 @@
+#!/bin/bash
+
+action=$(yad --title="Session Control" --center --width=400 --height=300 \
+             --button="Shutdown:1" --button="Reboot:2" --button="Suspend:3" \
+             --button="Hibernate:4" --button="Logout:5" --button="Cancel:0")
+
+case $? in
+    1) systemctl poweroff ;;
+    2) systemctl reboot ;;
+    3) systemctl suspend ;;
+    4) systemctl hibernate ;;
+    5) pkill -KILL -u "$USER" ;;
+    *) exit 0 ;;
+esac
