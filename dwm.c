@@ -186,6 +186,7 @@ static void motionnotify(XEvent *e);
 static void movemouse(const Arg *arg);
 static void notify_tag(int tag);
 static void notify_window_move(int from_tag, int to_tag);
+static void notify_startup(void);
 static Client *nexttiled(Client *c);
 static void pop(Client *c);
 static void propertynotify(XEvent *e);
@@ -1139,6 +1140,19 @@ notify_window_move(int from_tag, int to_tag)
 }
 
 void
+notify_startup(void)
+{
+	// Play a distinctive startup sound and announce that DINA has started
+	// This helps users know DINA is running even if other components (like Orca) fail
+	char cmd[256];
+	snprintf(cmd, sizeof(cmd), 
+		"play -nq synth 0.15 sine 500 sine 800 sine 1200 vol 0.4 & spd-say -r -30 \"DINA window manager started\"");
+	
+	Arg arg = SHCMD_NOTIFY(cmd);
+	spawn(&arg);
+}
+
+void
 monocle(Monitor *m)
 {
 	unsigned int n = 0;
@@ -1651,6 +1665,9 @@ setup(void)
 		arg.v = orcacmd;
 		spawn(&arg);
 	}
+	
+	/* Play startup sound to indicate DINA has started successfully */
+	notify_startup();
 }
 
 void
