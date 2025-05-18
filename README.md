@@ -63,7 +63,7 @@ This will:
 
 | Component                  | Path                                      |
 |---------------------------|-------------------------------------------|
-| `dwm` binary              | `/usr/local/bin/dwm`                      |
+| `DINA` binary             | `/usr/local/bin/DINA`                     |
 | Accessibility scripts     | `~/.local/bin/`                           |
 | `sxhkdrc` config          | `~/.config/sxhkd/sxhkdrc`                 |
 
