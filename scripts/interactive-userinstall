@@ -32,7 +32,7 @@ dialog --title "DINA Setup" \
 BROWSERS=()
 BROWSER_PATHS=()
 
-echo "Testing for browser: $1"; check_browser() {
+check_browser() {
     if command -v "$1" >/dev/null 2>&1; then
         BROWSERS+=("$1")
         BROWSER_PATHS+=("$(command -v "$1")")
@@ -98,7 +98,7 @@ fi
 FILE_MANAGERS=()
 FILE_MANAGER_PATHS=()
 
-echo "Testing for file manager: $1"; check_file_manager() {
+check_file_manager() {
     if command -v "$1" >/dev/null 2>&1; then
         FILE_MANAGERS+=("$1")
         FILE_MANAGER_PATHS+=("$(command -v "$1")")
@@ -161,7 +161,7 @@ fi
 TERMINALS=()
 TERMINAL_PATHS=()
 
-echo "Testing for terminal: $1"; check_terminal() {
+check_terminal() {
     if command -v "$1" >/dev/null 2>&1; then
         TERMINALS+=("$1")
         TERMINAL_PATHS+=("$(command -v "$1")")
@@ -278,10 +278,22 @@ if [ -n "$BROWSER_CHOICE" ]; then
     if grep -q "^super + w" "$SXHKDRC"; then
         # Get the line number of the binding
         LINE_NUM=$(grep -n "^super + w" "$SXHKDRC" | cut -d: -f1)
-        # Remove the old binding (line and the line after it)
-        sed -i "${LINE_NUM}d;${LINE_NUM}d" "$SXHKDRC"
-        # Add the new binding at the same location
-        sed -i "${LINE_NUM}i\\super + w\\n\\t$BROWSER_CHOICE" "$SXHKDRC"
+        
+        # Create a temporary file that replaces the binding
+        {
+            # Print file up to the binding line
+            head -n $((LINE_NUM-1)) "$SXHKDRC"
+            
+            # Add the new binding
+            echo "super + w"
+            echo "	$BROWSER_CHOICE"
+            
+            # Print the rest of the file, skipping the old binding and command
+            tail -n +$((LINE_NUM+2)) "$SXHKDRC"
+        } > "${SXHKDRC}.tmp"
+        
+        # Replace the original file
+        mv "${SXHKDRC}.tmp" "$SXHKDRC"
     else
         # Add new binding
         echo -e "\nsuper + w\n\t$BROWSER_CHOICE" >> "$SXHKDRC"
@@ -294,10 +306,22 @@ if [ -n "$FILE_MANAGER_CHOICE" ]; then
     if grep -q "^super + f" "$SXHKDRC"; then
         # Get the line number of the binding
         LINE_NUM=$(grep -n "^super + f" "$SXHKDRC" | cut -d: -f1)
-        # Remove the old binding (line and the line after it)
-        sed -i "${LINE_NUM}d;${LINE_NUM}d" "$SXHKDRC"
-        # Add the new binding at the same location
-        sed -i "${LINE_NUM}i\\super + f\\n\\t$FILE_MANAGER_CHOICE" "$SXHKDRC"
+        
+        # Create a temporary file that replaces the binding
+        {
+            # Print file up to the binding line
+            head -n $((LINE_NUM-1)) "$SXHKDRC"
+            
+            # Add the new binding
+            echo "super + f"
+            echo "	$FILE_MANAGER_CHOICE"
+            
+            # Print the rest of the file, skipping the old binding and command
+            tail -n +$((LINE_NUM+2)) "$SXHKDRC"
+        } > "${SXHKDRC}.tmp"
+        
+        # Replace the original file
+        mv "${SXHKDRC}.tmp" "$SXHKDRC"
     else
         # Add new binding
         echo -e "\nsuper + f\n\t$FILE_MANAGER_CHOICE" >> "$SXHKDRC"
@@ -310,10 +334,22 @@ if [ -n "$TERMINAL_CHOICE" ]; then
     if grep -q "^super + Return" "$SXHKDRC"; then
         # Get the line number of the binding
         LINE_NUM=$(grep -n "^super + Return" "$SXHKDRC" | cut -d: -f1)
-        # Remove the old binding (line and the line after it)
-        sed -i "${LINE_NUM}d;${LINE_NUM}d" "$SXHKDRC"
-        # Add the new binding at the same location
-        sed -i "${LINE_NUM}i\\super + Return\\n\\t$TERMINAL_CHOICE" "$SXHKDRC"
+        
+        # Create a temporary file that replaces the binding
+        {
+            # Print file up to the binding line
+            head -n $((LINE_NUM-1)) "$SXHKDRC"
+            
+            # Add the new binding
+            echo "super + Return"
+            echo "	$TERMINAL_CHOICE"
+            
+            # Print the rest of the file, skipping the old binding and command
+            tail -n +$((LINE_NUM+2)) "$SXHKDRC"
+        } > "${SXHKDRC}.tmp"
+        
+        # Replace the original file
+        mv "${SXHKDRC}.tmp" "$SXHKDRC"
     else
         # Add new binding
         echo -e "\nsuper + Return\n\t$TERMINAL_CHOICE" >> "$SXHKDRC"
