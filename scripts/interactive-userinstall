@@ -23,14 +23,6 @@ text_menu() {
     local num_options=${#options[@]}
     
     echo
-    echo "== $title =="
-    echo
-    
-    for i in $(seq 0 $((num_options-1))); do
-        echo "  $i. ${options[$i]}"
-    done
-    
-    echo
     echo -n "Enter selection (0-$((num_options-1))) or just press Enter to skip: "
     read choice
     
@@ -111,7 +103,10 @@ if [ ${#BROWSERS[@]} -eq 0 ]; then
     fi
 else
     # Display browser selection menu
-    echo "Found ${#BROWSERS[@]} browsers."
+    echo "Found ${#BROWSERS[@]} browsers:"
+    for i in "${!BROWSERS[@]}"; do
+        echo "  $i. ${BROWSERS[$i]}"
+    done
     
     choice=$(text_menu "Browser Selection" "${BROWSERS[@]}")
     
@@ -166,7 +161,10 @@ if [ ${#FILE_MANAGERS[@]} -eq 0 ]; then
     fi
 else
     # Display file manager selection menu
-    echo "Found ${#FILE_MANAGERS[@]} file managers."
+    echo "Found ${#FILE_MANAGERS[@]} file managers:"
+    for i in "${!FILE_MANAGERS[@]}"; do
+        echo "  $i. ${FILE_MANAGERS[$i]}"
+    done
     
     choice=$(text_menu "File Manager Selection" "${FILE_MANAGERS[@]}")
     
@@ -224,7 +222,10 @@ if [ ${#TERMINALS[@]} -eq 0 ]; then
     fi
 else
     # Display terminal selection menu
-    echo "Found ${#TERMINALS[@]} terminals."
+    echo "Found ${#TERMINALS[@]} terminals:"
+    for i in "${!TERMINALS[@]}"; do
+        echo "  $i. ${TERMINALS[$i]}"
+    done
     
     choice=$(text_menu "Terminal Selection" "${TERMINALS[@]}")
     
