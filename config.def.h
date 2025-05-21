@@ -17,7 +17,10 @@ static const char *colors[][3]      = {
 static const char *tags[] = { "1", "2", "3", "4", "5", "6", "7", "8", "9" };
 
 /* no window rules */
-static const Rule rules[] = { 0 };
+static const Rule rules[] = { 
+	/* class      instance    title       tags mask     isfloating   monitor */
+	{ NULL,       NULL,       NULL,       0,            0,           -1 }
+};
 
 /* layout: only monocle is kept */
 static const float mfact     = 0.55;    // Master area size (unused in monocle)
@@ -47,16 +50,26 @@ static const Key keys[] = {
 	{ MODKEY,                       XK_j,      focusstack,     {.i = -1 } }, // Focus previous
 	{ MODKEY,                       XK_l,      focusstack,     {.i = +1 } }, // Focus next
 	{ MODKEY,                       XK_k,      killclient,     {0} },        // Close window
-	TAGKEYS(                        XK_1,                      0)
-	TAGKEYS(                        XK_2,                      1)
-	TAGKEYS(                        XK_3,                      2)
-	TAGKEYS(                        XK_4,                      3)
-	TAGKEYS(                        XK_5,                      4)
-	TAGKEYS(                        XK_6,                      5)
-	TAGKEYS(                        XK_7,                      6)
-	TAGKEYS(                        XK_8,                      7)
-	TAGKEYS(                        XK_9,                      8)
-	{ MODKEY|ShiftMask,             XK_q,      quit,           {0} },        // Quit DINA
+	/* Tag keys for switching workspaces and moving windows */
+	{ MODKEY,                       XK_1,      view,           {.ui = 1 << 0} },
+	{ MODKEY|ShiftMask,             XK_1,      tag,            {.ui = 1 << 0} },
+	{ MODKEY,                       XK_2,      view,           {.ui = 1 << 1} },
+	{ MODKEY|ShiftMask,             XK_2,      tag,            {.ui = 1 << 1} },
+	{ MODKEY,                       XK_3,      view,           {.ui = 1 << 2} },
+	{ MODKEY|ShiftMask,             XK_3,      tag,            {.ui = 1 << 2} },
+	{ MODKEY,                       XK_4,      view,           {.ui = 1 << 3} },
+	{ MODKEY|ShiftMask,             XK_4,      tag,            {.ui = 1 << 3} },
+	{ MODKEY,                       XK_5,      view,           {.ui = 1 << 4} },
+	{ MODKEY|ShiftMask,             XK_5,      tag,            {.ui = 1 << 4} },
+	{ MODKEY,                       XK_6,      view,           {.ui = 1 << 5} },
+	{ MODKEY|ShiftMask,             XK_6,      tag,            {.ui = 1 << 5} },
+	{ MODKEY,                       XK_7,      view,           {.ui = 1 << 6} },
+	{ MODKEY|ShiftMask,             XK_7,      tag,            {.ui = 1 << 6} },
+	{ MODKEY,                       XK_8,      view,           {.ui = 1 << 7} },
+	{ MODKEY|ShiftMask,             XK_8,      tag,            {.ui = 1 << 7} },
+	{ MODKEY,                       XK_9,      view,           {.ui = 1 << 8} },
+	{ MODKEY|ShiftMask,             XK_9,      tag,            {.ui = 1 << 8} },
+	{ MODKEY|ShiftMask,             XK_q,      quit,           {0} }         // Quit DINA
 };
 
 /* mouse button definitions — mostly left as placeholders */
