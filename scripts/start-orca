@@ -10,6 +10,41 @@ import sys
 import time
 import subprocess
 import shutil
+import logging
+import threading
+from datetime import datetime
+
+# Set up logging
+LOG_DIR = os.path.expanduser("~/.local/share/DINA")
+LOG_FILE = os.path.join(LOG_DIR, "start-orca.log")
+
+# Create log directory if it doesn't exist
+os.makedirs(LOG_DIR, exist_ok=True)
+
+# Configure logging
+logging.basicConfig(
+    filename=LOG_FILE,
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
+def log_with_timestamp(message, level="INFO"):
+    """Log a message with timestamp"""
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    # Console output
+    print(f"{timestamp} - {message}")
+    
+    # Log file output
+    if level == "INFO":
+        logging.info(message)
+    elif level == "WARNING":
+        logging.warning(message)
+    elif level == "ERROR":
+        logging.error(message)
+    elif level == "DEBUG":
+        logging.debug(message)
 
 def is_orca_running():
     """Check if Orca is already running"""
@@ -19,77 +54,237 @@ def is_orca_running():
             stdout=subprocess.PIPE, 
             stderr=subprocess.PIPE
         )
-        return result.returncode == 0
-    except Exception:
+        is_running = result.returncode == 0
+        log_with_timestamp(f"Orca already running: {is_running}", "DEBUG")
+        return is_running
+    except Exception as e:
+        log_with_timestamp(f"Error checking if Orca is running: {e}", "ERROR")
         return False
 
 def start_in_background():
     """Launch script in background"""
     try:
+        log_with_timestamp("Launching start-orca in background")
         # Relaunch self with python to ensure it's running detached
         script = os.path.abspath(__file__)
+        
+        # Use nohup to ensure the process continues running
         subprocess.Popen(
-            [sys.executable, script, "background"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
+            ["nohup", sys.executable, script, "background"],
+            stdout=open(os.path.join(LOG_DIR, "start-orca-nohup.out"), 'w'),
+            stderr=open(os.path.join(LOG_DIR, "start-orca-nohup.err"), 'w'),
+            start_new_session=True
+            # Removed preexec_fn=os.setpgrp which was causing issues
         )
+        log_with_timestamp("Background process launched successfully", "DEBUG")
     except Exception as e:
-        print(f"Error starting background process: {e}")
+        import traceback
+        error_details = traceback.format_exc()
+        log_with_timestamp(f"Error starting background process: {e}", "ERROR")
+        log_with_timestamp(f"Traceback: {error_details}", "ERROR")
 
-def announce_orca_starting():
-    """Announce that Orca is being started"""
-    print("Starting Orca screen reader")
+def play_sound_notification():
+    """Play a sound to indicate Orca is starting"""
+    log_with_timestamp("Playing sound to indicate Orca is starting...")
     try:
-        spd_say = shutil.which("spd-say")
-        if spd_say:
-            subprocess.run(
-                [spd_say, "-r", "-20", "Starting Orca screen reader"],
-                stdout=subprocess.DEVNULL, 
-                stderr=subprocess.DEVNULL,
+        # Try using paplay (PulseAudio) first
+        paplay = shutil.which("paplay")
+        if paplay:
+            # Try to use the system sounds if available
+            sound_paths = [
+                "/usr/share/sounds/freedesktop/stereo/service-login.oga",
+                "/usr/share/sounds/freedesktop/stereo/dialog-information.oga",
+                "/usr/share/sounds/gnome/default/alerts/glass.ogg",
+                "/usr/share/sounds/sound-icons/prompt.wav"
+            ]
+            
+            for sound_path in sound_paths:
+                if os.path.exists(sound_path):
+                    log_with_timestamp(f"Using sound file: {sound_path}", "DEBUG")
+                    result = subprocess.run(
+                        [paplay, sound_path],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        check=False
+                    )
+                    log_with_timestamp(f"paplay exit code: {result.returncode}", "DEBUG")
+                    if result.returncode == 0:
+                        return
+                    if result.stderr:
+                        log_with_timestamp(f"paplay error: {result.stderr.decode('utf-8', errors='replace')}", "WARNING")
+            
+            # If we get here, none of the sounds worked
+            log_with_timestamp("No system sounds available, trying fallback", "WARNING")
+        
+        # Fallback to using a beep with the speaker
+        beep = shutil.which("beep")
+        if beep:
+            log_with_timestamp("Using beep command", "DEBUG")
+            result = subprocess.run(
+                [beep, "-f", "1000", "-l", "300"],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 check=False
             )
+            log_with_timestamp(f"beep exit code: {result.returncode}", "DEBUG")
+            if result.stderr:
+                log_with_timestamp(f"beep error: {result.stderr.decode('utf-8', errors='replace')}", "WARNING")
+            return
+        
+        # Last resort: try to use ASCII bell
+        log_with_timestamp("Using ASCII bell as last resort", "DEBUG")
+        print("\a", flush=True)
+        
     except Exception as e:
-        print(f"Warning: Could not announce via speech: {e}")
-        # Silently fail if speech-dispatcher is not available
+        log_with_timestamp(f"Warning: Could not play sound notification: {e}", "WARNING")
+        # Silently fail if sound playing is not available
+
+def announce_orca_starting():
+    """Start a thread to play a notification sound"""
+    sound_thread = threading.Thread(target=play_sound_notification)
+    sound_thread.daemon = True  # Make thread exit when main thread exits
+    sound_thread.start()
+    log_with_timestamp("Started sound notification in separate thread", "DEBUG")
+
+def get_orca_version():
+    """Get Orca version information"""
+    try:
+        result = subprocess.run(
+            ["orca", "--version"], 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE
+        )
+        version = result.stdout.decode('utf-8', errors='replace').strip()
+        log_with_timestamp(f"Orca version: {version}", "DEBUG")
+    except Exception as e:
+        log_with_timestamp(f"Could not get Orca version: {e}", "WARNING")
+
+def check_environment():
+    """Check environment variables and system state"""
+    log_with_timestamp("--- Environment Information ---", "DEBUG")
+    
+    # Check if DISPLAY is set
+    display = os.environ.get('DISPLAY')
+    log_with_timestamp(f"DISPLAY: {display}", "DEBUG")
+    
+    # Check if WAYLAND_DISPLAY is set
+    wayland = os.environ.get('WAYLAND_DISPLAY')
+    log_with_timestamp(f"WAYLAND_DISPLAY: {wayland}", "DEBUG")
+    
+    # Check if XDG_SESSION_TYPE is set
+    session_type = os.environ.get('XDG_SESSION_TYPE')
+    log_with_timestamp(f"XDG_SESSION_TYPE: {session_type}", "DEBUG")
+    
+    # Check if DBUS_SESSION_BUS_ADDRESS is set
+    dbus = os.environ.get('DBUS_SESSION_BUS_ADDRESS')
+    log_with_timestamp(f"DBUS_SESSION_BUS_ADDRESS: {dbus}", "DEBUG")
+    
+    # Check if AT-SPI is running
+    try:
+        result = subprocess.run(
+            ["ps", "aux"], 
+            stdout=subprocess.PIPE
+        )
+        output = result.stdout.decode('utf-8', errors='replace')
+        if "at-spi" in output:
+            log_with_timestamp("AT-SPI service appears to be running", "DEBUG")
+        else:
+            log_with_timestamp("AT-SPI service not detected, may cause Orca issues", "WARNING")
+    except Exception as e:
+        log_with_timestamp(f"Error checking for AT-SPI: {e}", "WARNING")
+    
+    # Get Orca version
+    get_orca_version()
+    
+    log_with_timestamp("--- End Environment Information ---", "DEBUG")
 
 def main():
+    log_with_timestamp("=== start-orca script started ===")
+    log_with_timestamp(f"Arguments: {sys.argv}")
+    
     # Check if launched with the background argument
     if len(sys.argv) == 1:
         # Not running in background yet, relaunch self
+        log_with_timestamp("Initial launch, restarting in background mode")
         start_in_background()
         sys.exit(0)
     
+    log_with_timestamp("Running in background mode")
+    
+    # Check environment variables and system state
+    check_environment()
+    
     # Wait for DINA to initialize
+    log_with_timestamp("Waiting for DINA to initialize (2 seconds)")
     time.sleep(2)
     
-    # Check if Orca is already running
-    if not is_orca_running():
-        try:
-            # Start Orca with minimal logging
-            orca_process = subprocess.Popen(
-                ["orca", "--replace", "--no-setup", "--disable-sound-keys"],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                start_new_session=True
-            )
+    # Always restart Orca with --replace flag to ensure proper recovery from crashes
+    try:
+        # Start Orca with output captured for logging
+        if is_orca_running():
+            log_with_timestamp("Orca is already running, restarting it with --replace flag")
+        else:
+            log_with_timestamp("Orca not running, starting it with --replace flag")
+        
+        # Play a sound before starting Orca (in another thread)
+        # This ensures users know sound is working even if Orca fails
+        announce_orca_starting()
             
-            # Wait a moment to make sure it started
-            time.sleep(1)
+        # Capture stdout and stderr for logging
+        orca_stdout = open(os.path.join(LOG_DIR, "orca-stdout.log"), 'w')
+        orca_stderr = open(os.path.join(LOG_DIR, "orca-stderr.log"), 'w')
+        
+        orca_process = subprocess.Popen(
+            ["orca", "--replace", "--no-setup", "--debug"],
+            stdout=orca_stdout,
+            stderr=orca_stderr,
+            start_new_session=True
+        )
+        
+        log_with_timestamp(f"Orca process started with PID: {orca_process.pid}")
+        
+        # Wait a moment to make sure it started
+        log_with_timestamp("Waiting 3 seconds for Orca to initialize")
+        time.sleep(3)
+        
+        # Verify Orca is running
+        if orca_process.poll() is not None:
+            log_with_timestamp(f"Warning: Orca may have failed to start (exit code: {orca_process.returncode})", "WARNING")
             
-            # Verify Orca is running
-            if orca_process.poll() is not None:
-                print(f"Warning: Orca may have failed to start (exit code: {orca_process.returncode})")
+            # Check orca-stderr.log for errors
+            try:
+                orca_stderr.flush()
+                with open(os.path.join(LOG_DIR, "orca-stderr.log"), 'r') as f:
+                    stderr_content = f.read()
+                    if stderr_content:
+                        log_with_timestamp(f"Orca error output: {stderr_content}", "ERROR")
+            except Exception as e:
+                log_with_timestamp(f"Could not read Orca error log: {e}", "ERROR")
+        else:
+            log_with_timestamp("Orca appears to have started successfully")
+            
+            # Double-check with pgrep
+            if is_orca_running():
+                log_with_timestamp("Confirmed Orca is running via pgrep")
             else:
-                print("Orca started successfully")
-                
-            # Announce that screen reader is starting
-            announce_orca_starting()
-            
-        except Exception as e:
-            print(f"Error starting Orca: {e}")
-            sys.exit(1)
+                log_with_timestamp("Warning: Orca process started but not detected by pgrep", "WARNING")
+        
+    except Exception as e:
+        log_with_timestamp(f"Error starting Orca: {e}", "ERROR")
+        sys.exit(1)
+    finally:
+        # Close file descriptors if they were opened
+        if 'orca_stdout' in locals():
+            orca_stdout.close()
+        if 'orca_stderr' in locals():
+            orca_stderr.close()
     
+    log_with_timestamp("=== start-orca script completed ===")
     sys.exit(0)
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        logging.exception("Unhandled exception in start-orca")
+        sys.exit(1)
