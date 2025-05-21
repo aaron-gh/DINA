@@ -1,46 +1,233 @@
-#!/bin/bash
+#!/usr/bin/env python3
+#
+# toggle-blackout - Screen blackout toggle script for DINA
+#
+# Turns all displays on or off and provides audio feedback
 
-STATE_FILE="/tmp/screen_blanked"
-LOG_FILE="/tmp/screen_blackout.log"
-DISPLAYS=$(xrandr --current | awk '/ connected/{print $1}')
+import os
+import sys
+import subprocess
+import time
+import re
+import shlex
+import shutil
 
-log_error() {
-    echo "[$(date)] ERROR: $1" >> "$LOG_FILE"
-    play -nq synth 0.2 sin 300 vol 0.5
-    yad --title="Blackout Error" --text-info --filename="$LOG_FILE" --width=600 --height=400 &
-    spd-say "Screen blackout failed. See error log."
-    exit 1
-}
+# File to track state and display configuration
+STATE_FILE = "/tmp/screen_blanked"
+LOG_FILE = "/tmp/screen_blackout.log"
 
-play_on() {
-    play -nq synth 0.1 sin 880 vol 0.4 &
-    spd-say "Screen on" &
-}
+def log_error(message):
+    """Log error message and notify user"""
+    try:
+        # Append error to log file with timestamp
+        with open(LOG_FILE, 'a') as log:
+            timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+            log.write(f"[{timestamp}] ERROR: {message}\n")
+        
+        print(f"ERROR: {message}")
+        
+        # Play error sound
+        try:
+            subprocess.run(
+                ["play", "-nq", "synth", "0.2", "sin", "300", "vol", "0.5"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False  # Don't raise exception if play fails
+            )
+        except Exception:
+            pass
+        
+        # Display error log in YAD
+        try:
+            subprocess.Popen([
+                "yad", 
+                "--title=Blackout Error", 
+                "--text-info", 
+                f"--filename={LOG_FILE}", 
+                "--width=600", "--height=400"
+            ], start_new_session=True)
+        except Exception:
+            pass
+        
+        # Speak error message
+        try:
+            subprocess.run(
+                ["spd-say", "Screen blackout failed. See error log."],
+                check=False
+            )
+        except Exception:
+            pass
+        
+        sys.exit(1)
+    except Exception as e:
+        print(f"Fatal error: {e}")
+        sys.exit(1)
 
-play_off() {
-    play -nq synth 0.1 sin 440 vol 0.4 &
-    spd-say "Screen off" &
-}
+def play_on():
+    """Play sound and speak when turning screens on"""
+    print("Turning screens ON")
+    try:
+        # Play higher pitched sound
+        subprocess.Popen(
+            ["play", "-nq", "synth", "0.1", "sin", "880", "vol", "0.4"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True
+        )
+    except Exception:
+        pass  # Silently fail if play command fails
+        
+    try:
+        # Speak notification
+        subprocess.Popen(
+            ["spd-say", "Screen on"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True
+        )
+    except Exception:
+        pass  # Silently fail if speech command fails
 
-if [ -z "$DISPLAYS" ]; then
-    log_error "No connected displays found via xrandr"
-fi
+def play_off():
+    """Play sound and speak when turning screens off"""
+    print("Turning screens OFF")
+    try:
+        # Play lower pitched sound
+        subprocess.Popen(
+            ["play", "-nq", "synth", "0.1", "sin", "440", "vol", "0.4"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True
+        )
+    except Exception:
+        pass  # Silently fail if play command fails
+        
+    try:
+        # Speak notification
+        subprocess.Popen(
+            ["spd-say", "Screen off"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True
+        )
+    except Exception:
+        pass  # Silently fail if speech command fails
 
-if [ -f "$STATE_FILE" ]; then
-    while read -r line; do
-        display=$(echo "$line" | cut -d'|' -f1)
-        mode=$(echo "$line" | cut -d'|' -f2)
-        xrandr --output "$display" --mode "$mode" 2>>"$LOG_FILE" || log_error "Failed to restore $display to $mode"
-    done < "$STATE_FILE"
-    rm -f "$STATE_FILE"
-    play_on
-else
-    > "$STATE_FILE"
-    for display in $DISPLAYS; do
-        mode=$(xrandr --query | grep -A1 "^$display connected" | awk 'NR==2 {print $1}')
-        [ -z "$mode" ] && log_error "Could not determine mode for $display"
-        echo "$display|$mode" >> "$STATE_FILE"
-        xrandr --output "$display" --off 2>>"$LOG_FILE" || log_error "Failed to turn off $display"
-    done
-    play_off
-fi
+def get_connected_displays():
+    """Get list of connected displays using xrandr"""
+    try:
+        result = subprocess.run(
+            ["xrandr", "--current"],
+            capture_output=True,
+            text=True
+        )
+        
+        # Find all connected displays
+        displays = []
+        for line in result.stdout.splitlines():
+            match = re.search(r'^(\S+)\s+connected', line)
+            if match:
+                displays.append(match.group(1))
+        
+        return displays
+    except Exception as e:
+        log_error(f"Failed to get display information: {e}")
+        return []
+
+def get_display_mode(display):
+    """Get current mode for a display"""
+    try:
+        result = subprocess.run(
+            ["xrandr", "--query"],
+            capture_output=True,
+            text=True
+        )
+        
+        # Find the mode for the display
+        display_section = False
+        for line in result.stdout.splitlines():
+            if line.startswith(f"{display} connected"):
+                display_section = True
+                continue
+            
+            if display_section and re.match(r'^\s+\S+', line):
+                # Get the first mode (current mode)
+                mode = line.strip().split()[0]
+                return mode
+            
+            # If we've moved to another display, stop looking
+            if display_section and re.match(r'^\S+\s+', line):
+                break
+        
+        return None
+    except Exception as e:
+        log_error(f"Failed to get mode for display {display}: {e}")
+        return None
+
+def turn_displays_on():
+    """Restore displays to their saved configurations"""
+    try:
+        with open(STATE_FILE, 'r') as f:
+            for line in f:
+                display, mode = line.strip().split('|')
+                try:
+                    subprocess.run(
+                        ["xrandr", "--output", display, "--mode", mode],
+                        check=True,
+                        stderr=subprocess.PIPE,
+                        text=True
+                    )
+                except subprocess.CalledProcessError as e:
+                    log_error(f"Failed to restore {display} to {mode}: {e.stderr}")
+        
+        # Remove state file after successfully restoring displays
+        os.unlink(STATE_FILE)
+        play_on()
+    except Exception as e:
+        log_error(f"Failed to restore display configuration: {e}")
+
+def turn_displays_off():
+    """Turn off all connected displays, saving their configurations"""
+    displays = get_connected_displays()
+    if not displays:
+        log_error("No connected displays found via xrandr")
+    
+    try:
+        # Create or clear state file
+        with open(STATE_FILE, 'w') as f:
+            for display in displays:
+                mode = get_display_mode(display)
+                if not mode:
+                    log_error(f"Could not determine mode for {display}")
+                
+                # Save display and mode
+                f.write(f"{display}|{mode}\n")
+                
+                # Turn off the display
+                try:
+                    subprocess.run(
+                        ["xrandr", "--output", display, "--off"],
+                        check=True,
+                        stderr=subprocess.PIPE,
+                        text=True
+                    )
+                except subprocess.CalledProcessError as e:
+                    log_error(f"Failed to turn off {display}: {e.stderr}")
+        
+        play_off()
+    except Exception as e:
+        log_error(f"Failed to turn off displays: {e}")
+
+def main():
+    # Check if the required commands are available
+    if not shutil.which("xrandr"):
+        log_error("xrandr command not found")
+    
+    # Toggle based on state file existence
+    if os.path.exists(STATE_FILE):
+        turn_displays_on()
+    else:
+        turn_displays_off()
+
+if __name__ == "__main__":
+    main()

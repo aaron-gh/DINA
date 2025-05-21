@@ -1,15 +1,105 @@
-#!/bin/bash
+#!/usr/bin/env python3
+#
+# battery-watch - Low battery notification script for DINA
+#
+# Monitors battery level and issues warnings when it gets low
 
-THRESHOLD=15
+import time
+import subprocess
+import re
+import shlex
+import sys
 
-while true; do
-    BATTERY=$(acpi -b | grep -P -o '[0-9]+(?=%)')
-    STATUS=$(acpi -b | awk '{print $3}' | tr -d ',')
+# Battery level threshold for warnings (percentage)
+THRESHOLD = 15
 
-    if [ "$STATUS" = "Discharging" ] && [ "$BATTERY" -le "$THRESHOLD" ]; then
-        notify-send -u critical "Battery low" "Battery is at ${BATTERY}%!"
-        spd-say "Battery warning. ${BATTERY} percent."
-    fi
+def get_battery_info():
+    """Get battery percentage and charging status"""
+    try:
+        # Run acpi command to get battery info
+        result = subprocess.run(["acpi", "-b"], capture_output=True, text=True)
+        acpi_output = result.stdout.strip()
+        
+        # Check if we got any output
+        if not acpi_output:
+            return None, None
+        
+        # Extract battery percentage
+        percentage_match = re.search(r'(\d+)%', acpi_output)
+        if percentage_match:
+            battery_percentage = int(percentage_match.group(1))
+        else:
+            battery_percentage = None
+        
+        # Extract charging status
+        status_match = re.search(r':\s+(\w+),', acpi_output)
+        if status_match:
+            status = status_match.group(1)
+        else:
+            status = None
+            
+        return battery_percentage, status
+    except Exception as e:
+        print(f"Error getting battery info: {e}")
+        return None, None
 
-    sleep 60
-done
+def notify(message):
+    """Send notification and speech alert"""
+    try:
+        # Send desktop notification
+        subprocess.run([
+            "notify-send", 
+            "-u", "critical", 
+            "Battery low", 
+            message
+        ])
+        
+        # Send speech notification
+        subprocess.run([
+            "spd-say", 
+            f"Battery warning. {message}"
+        ])
+    except Exception as e:
+        print(f"Error sending notification: {e}")
+
+def main():
+    """Main monitoring loop"""
+    print(f"Battery watch started. Warning threshold: {THRESHOLD}%")
+    
+    # Track when we last sent a notification to avoid spamming
+    last_notification_time = 0
+    notification_cooldown = 300  # 5 minutes between notifications
+    
+    while True:
+        try:
+            battery_percentage, status = get_battery_info()
+            
+            # Debug output
+            if battery_percentage is not None:
+                print(f"Battery: {battery_percentage}%, Status: {status}")
+            
+            current_time = time.time()
+            time_since_last_notification = current_time - last_notification_time
+            
+            # If we got valid battery info and it's discharging
+            if (battery_percentage is not None and 
+                status == "Discharging" and 
+                battery_percentage <= THRESHOLD and 
+                time_since_last_notification >= notification_cooldown):
+                
+                notify(f"{battery_percentage} percent.")
+                last_notification_time = current_time
+                print(f"Low battery notification sent at {time.strftime('%H:%M:%S')}")
+            
+            # Check every minute
+            time.sleep(60)
+        except KeyboardInterrupt:
+            print("Battery watch stopped.")
+            sys.exit(0)
+        except Exception as e:
+            print(f"Error in battery watch: {e}")
+            # Don't exit, just try again after a delay
+            time.sleep(60)
+
+if __name__ == "__main__":
+    main()

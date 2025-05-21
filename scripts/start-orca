@@ -1,29 +1,95 @@
-#!/bin/bash
+#!/usr/bin/env python3
 #
 # start-orca - Non-blocking Orca screen reader launcher for DINA
 #
 # This script ensures Orca starts with DINA without blocking
 # the window manager startup process
 
-# Ensure script runs in background
-if [ "$1" != "background" ]; then
-    # If not already running in background, restart self in background
-    "$0" background & 
-    exit 0
-fi
+import os
+import sys
+import time
+import subprocess
+import shutil
 
-# Wait a moment for DINA to initialize
-sleep 2
+def is_orca_running():
+    """Check if Orca is already running"""
+    try:
+        result = subprocess.run(
+            ["pgrep", "-x", "orca"], 
+            stdout=subprocess.PIPE, 
+            stderr=subprocess.PIPE
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
 
-# Check if Orca is already running
-if ! pgrep -x "orca" > /dev/null; then
-    # Start Orca with minimal logging to avoid terminal clutter
-    nohup orca --replace --no-setup --disable-sound-keys >/dev/null 2>&1 &
+def start_in_background():
+    """Launch script in background"""
+    try:
+        # Relaunch self with python to ensure it's running detached
+        script = os.path.abspath(__file__)
+        subprocess.Popen(
+            [sys.executable, script, "background"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+    except Exception as e:
+        print(f"Error starting background process: {e}")
+
+def announce_orca_starting():
+    """Announce that Orca is being started"""
+    print("Starting Orca screen reader")
+    try:
+        spd_say = shutil.which("spd-say")
+        if spd_say:
+            subprocess.run(
+                [spd_say, "-r", "-20", "Starting Orca screen reader"],
+                stdout=subprocess.DEVNULL, 
+                stderr=subprocess.DEVNULL,
+                check=False
+            )
+    except Exception as e:
+        print(f"Warning: Could not announce via speech: {e}")
+        # Silently fail if speech-dispatcher is not available
+
+def main():
+    # Check if launched with the background argument
+    if len(sys.argv) == 1:
+        # Not running in background yet, relaunch self
+        start_in_background()
+        sys.exit(0)
     
-    # Optionally announce that screen reader is starting
-    if command -v spd-say >/dev/null 2>&1; then
-        spd-say -r -20 "Starting Orca screen reader"
-    fi
-fi
+    # Wait for DINA to initialize
+    time.sleep(2)
+    
+    # Check if Orca is already running
+    if not is_orca_running():
+        try:
+            # Start Orca with minimal logging
+            orca_process = subprocess.Popen(
+                ["orca", "--replace", "--no-setup", "--disable-sound-keys"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True
+            )
+            
+            # Wait a moment to make sure it started
+            time.sleep(1)
+            
+            # Verify Orca is running
+            if orca_process.poll() is not None:
+                print(f"Warning: Orca may have failed to start (exit code: {orca_process.returncode})")
+            else:
+                print("Orca started successfully")
+                
+            # Announce that screen reader is starting
+            announce_orca_starting()
+            
+        except Exception as e:
+            print(f"Error starting Orca: {e}")
+            sys.exit(1)
+    
+    sys.exit(0)
 
-exit 0
+if __name__ == "__main__":
+    main()

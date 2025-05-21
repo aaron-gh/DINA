@@ -1,14 +1,74 @@
-#!/bin/bash
+#!/usr/bin/env python3
+#
+# session-menu - YAD-based session control menu for DINA
+#
+# Provides a simple accessible menu for power management options
 
-action=$(yad --title="Session Control" --center --width=400 --height=300 \
-             --button="Shutdown:1" --button="Reboot:2" --button="Suspend:3" \
-             --button="Hibernate:4" --button="Logout:5" --button="Cancel:0")
+import os
+import subprocess
+import sys
+import shutil
 
-case $? in
-    1) systemctl poweroff ;;
-    2) systemctl reboot ;;
-    3) systemctl suspend ;;
-    4) systemctl hibernate ;;
-    5) pkill -KILL -u "$USER" ;;
-    *) exit 0 ;;
-esac
+def main():
+    """Display session control menu using YAD"""
+    yad_cmd = [
+        "yad",
+        "--title=Session Control",
+        "--center",
+        "--width=400", "--height=300",
+        "--button=Shutdown:1",
+        "--button=Reboot:2",
+        "--button=Suspend:3",
+        "--button=Hibernate:4",
+        "--button=Logout:5",
+        "--button=Cancel:0"
+    ]
+    
+    try:
+        # Check if YAD is available
+        if not shutil.which("yad"):
+            print("Error: YAD is not installed or not in PATH")
+            sys.exit(1)
+            
+        # Run YAD and get the exit code
+        result = subprocess.run(yad_cmd)
+        exit_code = result.returncode
+        
+        print(f"Selected option: {exit_code}")
+        
+        # Perform action based on button clicked
+        if exit_code == 1:
+            # Shutdown
+            print("Shutting down system...")
+            subprocess.run(["systemctl", "poweroff"])
+        elif exit_code == 2:
+            # Reboot
+            print("Rebooting system...")
+            subprocess.run(["systemctl", "reboot"])
+        elif exit_code == 3:
+            # Suspend
+            print("Suspending system...")
+            subprocess.run(["systemctl", "suspend"])
+        elif exit_code == 4:
+            # Hibernate
+            print("Hibernating system...")
+            subprocess.run(["systemctl", "hibernate"])
+        elif exit_code == 5:
+            # Logout - Kill the user session
+            user = os.environ.get("USER", "")
+            if user:
+                print(f"Logging out user: {user}")
+                subprocess.run(["pkill", "-KILL", "-u", user])
+            else:
+                print("Error: Could not determine current user")
+                sys.exit(1)
+        else:
+            # Cancel or window closed - do nothing
+            print("Operation cancelled")
+            sys.exit(0)
+    except Exception as e:
+        print(f"Error in session menu: {e}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()

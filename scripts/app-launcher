@@ -1,19 +1,104 @@
-#!/bin/bash
+#!/usr/bin/env python3
+#
+# app-launcher - YAD-based application launcher for DINA
+#
+# Parses .desktop files and displays applications in an accessible menu
 
-apps=$(find /usr/share/applications ~/.local/share/applications -name '*.desktop' 2>/dev/null)
-declare -A appmap
+import os
+import subprocess
+import glob
+import re
+import shlex
 
-while IFS= read -r desktop; do
-    name=$(grep -m1 '^Name=' "$desktop" | cut -d= -f2-)
-    exec=$(grep -m1 '^Exec=' "$desktop" | cut -d= -f2- | sed -E 's/ *%[a-zA-Z]//g' | xargs)
-    [ -n "$name" ] && [ -n "$exec" ] && [ -z "${appmap["$name"]}" ] && appmap["$name"]="$exec"
-done <<< "$apps"
+def find_desktop_files():
+    """Find all desktop files in standard locations"""
+    locations = [
+        "/usr/share/applications/*.desktop",
+        os.path.expanduser("~/.local/share/applications/*.desktop")
+    ]
+    
+    desktop_files = []
+    for location in locations:
+        desktop_files.extend(glob.glob(location))
+    
+    return desktop_files
 
-entries=$(for name in "${!appmap[@]}"; do echo "$name|${appmap[$name]}"; done | sort -f)
+def parse_desktop_file(desktop_file):
+    """Extract name and command from desktop file"""
+    name = None
+    exec_cmd = None
+    
+    try:
+        with open(desktop_file, 'r', encoding='utf-8') as f:
+            for line in f:
+                if line.startswith('Name='):
+                    name = line.strip()[5:]
+                elif line.startswith('Exec='):
+                    exec_cmd = line.strip()[5:]
+                    # Remove field codes like %f, %F, %u, etc.
+                    exec_cmd = re.sub(r'\s*%[a-zA-Z]', '', exec_cmd)
+                    # Make sure arguments are properly separated
+                    exec_cmd = exec_cmd.strip()
+                
+                # If we've found both name and exec, we can stop reading
+                if name and exec_cmd:
+                    break
+    except (IOError, UnicodeDecodeError):
+        return None, None
+    
+    return name, exec_cmd
 
-selection=$(echo "$entries" | yad --list --title="Applications" --width=600 --height=400 \
-    --center --column="Application" --column="Command" --hide-column=2 \
-    --search-column=1 --separator="|" --no-markup)
+def main():
+    # Find and parse desktop files
+    app_map = {}
+    for desktop_file in find_desktop_files():
+        name, exec_cmd = parse_desktop_file(desktop_file)
+        if name and exec_cmd and name not in app_map:
+            app_map[name] = exec_cmd
+    
+    # Format entries for YAD
+    entries = []
+    for name, exec_cmd in sorted(app_map.items(), key=lambda x: x[0].lower()):
+        entries.append(f"{name}|{exec_cmd}")
+    
+    if not entries:
+        print("No applications found")
+        return
+    
+    # Create YAD command
+    yad_cmd = [
+        "yad", "--list", 
+        "--title=Applications", 
+        "--width=600", "--height=400",
+        "--center", 
+        "--column=Application", "--column=Command",
+        "--hide-column=2",
+        "--search-column=1",
+        "--separator=|",
+        "--no-markup"
+    ]
+    
+    # Pass entries to YAD and get selection
+    try:
+        proc = subprocess.Popen(yad_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+        selection, _ = proc.communicate(input="\n".join(entries))
+        
+        # If a selection was made, launch the application
+        if selection.strip():
+            parts = selection.strip().split('|')
+            if len(parts) > 1:
+                cmd = parts[1]
+                if cmd:
+                    print(f"Launching: {cmd}")
+                    # Use Popen to avoid blocking and detach from parent process
+                    subprocess.Popen(
+                        shlex.split(cmd), 
+                        stdout=subprocess.DEVNULL, 
+                        stderr=subprocess.DEVNULL,
+                        start_new_session=True
+                    )
+    except Exception as e:
+        print(f"Error launching application: {e}")
 
-cmd=$(echo "$selection" | cut -d'|' -f2)
-[ -n "$cmd" ] && nohup $cmd >/dev/null 2>&1 &
+if __name__ == "__main__":
+    main()
