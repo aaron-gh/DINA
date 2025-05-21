@@ -65,6 +65,7 @@ def log_error(message):
 
 def play_on():
     """Play sound and speak when turning screens on"""
+    # Start the audio feedback immediately for more responsive feel
     print("Turning screens ON")
     try:
         # Play higher pitched sound
@@ -90,6 +91,7 @@ def play_on():
 
 def play_off():
     """Play sound and speak when turning screens off"""
+    # Start the audio feedback immediately for more responsive feel
     print("Turning screens OFF")
     try:
         # Play lower pitched sound
@@ -166,33 +168,47 @@ def get_display_mode(display):
 
 def turn_displays_on():
     """Restore displays to their saved configurations"""
+    # Start the audio feedback immediately for more responsive feel
+    play_on()
+    
     try:
+        # Build xrandr command for all displays at once
+        cmd = ["xrandr"]
+        
         with open(STATE_FILE, 'r') as f:
             for line in f:
                 display, mode = line.strip().split('|')
-                try:
-                    subprocess.run(
-                        ["xrandr", "--output", display, "--mode", mode],
-                        check=True,
-                        stderr=subprocess.PIPE,
-                        text=True
-                    )
-                except subprocess.CalledProcessError as e:
-                    log_error(f"Failed to restore {display} to {mode}: {e.stderr}")
+                cmd.extend(["--output", display, "--mode", mode])
+        
+        try:
+            # Execute a single xrandr command for all displays
+            subprocess.run(
+                cmd,
+                check=True,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+        except subprocess.CalledProcessError as e:
+            log_error(f"Failed to restore displays: {e.stderr}")
         
         # Remove state file after successfully restoring displays
         os.unlink(STATE_FILE)
-        play_on()
     except Exception as e:
         log_error(f"Failed to restore display configuration: {e}")
 
 def turn_displays_off():
     """Turn off all connected displays, saving their configurations"""
+    # Start the audio feedback immediately for more responsive feel
+    play_off()
+    
     displays = get_connected_displays()
     if not displays:
         log_error("No connected displays found via xrandr")
     
     try:
+        # Build a single xrandr command for all displays
+        cmd = ["xrandr"]
+        
         # Create or clear state file
         with open(STATE_FILE, 'w') as f:
             for display in displays:
@@ -203,18 +219,19 @@ def turn_displays_off():
                 # Save display and mode
                 f.write(f"{display}|{mode}\n")
                 
-                # Turn off the display
-                try:
-                    subprocess.run(
-                        ["xrandr", "--output", display, "--off"],
-                        check=True,
-                        stderr=subprocess.PIPE,
-                        text=True
-                    )
-                except subprocess.CalledProcessError as e:
-                    log_error(f"Failed to turn off {display}: {e.stderr}")
+                # Add this display to the command
+                cmd.extend(["--output", display, "--off"])
         
-        play_off()
+        # Execute a single xrandr command for all displays
+        try:
+            subprocess.run(
+                cmd,
+                check=True,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+        except subprocess.CalledProcessError as e:
+            log_error(f"Failed to turn off displays: {e.stderr}")
     except Exception as e:
         log_error(f"Failed to turn off displays: {e}")
 
