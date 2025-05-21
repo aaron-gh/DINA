@@ -46,7 +46,8 @@ static const char *dmenucmd[] = { "true", NULL };
 static const Key keys[] = {
 	{ MODKEY,                       XK_j,      focusstack,     {.i = -1 } }, // Focus previous
 	{ MODKEY,                       XK_l,      focusstack,     {.i = +1 } }, // Focus next
-	{ MODKEY,                       XK_k,      killclient,     {0} },        // Close window		TAGKEYS(                        XK_1,                      0)
+	{ MODKEY,                       XK_k,      killclient,     {0} },        // Close window
+	TAGKEYS(                        XK_1,                      0)
 	TAGKEYS(                        XK_2,                      1)
 	TAGKEYS(                        XK_3,                      2)
 	TAGKEYS(                        XK_4,                      3)
