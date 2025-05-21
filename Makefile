@@ -1,15 +1,39 @@
 include config.mk
 
-SRC = dwm.c drw.c util.c
+# Source directories
+DIRS = core wm ui a11y util
+
+# Core source files
+CORE_SRC = core/dina.c core/config.c core/event.c
+# Window management source files
+WM_SRC = wm/window.c wm/monitor.c wm/tag.c wm/rules.c
+# UI source files
+UI_SRC = ui/drw.c
+# Accessibility source files
+A11Y_SRC = a11y/notify.c a11y/workspace_memory.c
+# Utility source files
+UTIL_SRC = util/util.c
+
+# All source files
+SRC = $(CORE_SRC) $(WM_SRC) $(UI_SRC) $(A11Y_SRC) $(UTIL_SRC)
 OBJ = ${SRC:.c=.o}
+
+# Header directories for include paths
+INCS = -I. $(patsubst %,-I%,$(DIRS))
 
 all: DINA
 
-DINA: ${OBJ}
+DINA: ensure_dirs ${OBJ}
 	${CC} -o $@ ${OBJ} ${LDFLAGS} -lX11 -lXinerama
+
+ensure_dirs:
+	@for dir in ${DIRS}; do \
+		mkdir -p $$dir; \
+	done
 
 clean:
 	rm -f DINA ${OBJ} *.core
+	find . -name "*.o" -type f -delete
 
 install: all
 	# Install DINA binary system-wide
@@ -44,4 +68,8 @@ uninstall:
 	      ${HOME}/.local/bin/start-orca ${HOME}/.local/bin/interactive-userinstall
 	rm -f ${HOME}/.config/sxhkd/sxhkdrc
 
-.PHONY: all clean install userinstall interactive-userinstall uninstall
+# Pattern rule for object files
+%.o: %.c
+	${CC} -c ${CFLAGS} ${INCS} $< -o $@
+
+.PHONY: all clean install userinstall interactive-userinstall uninstall ensure_dirs

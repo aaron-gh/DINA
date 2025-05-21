@@ -1,4 +1,4 @@
-# DINA version (based on dwm 6.5)
+# DINA version
 VERSION = 1.1
 
 # Customize below to fit your system
@@ -27,8 +27,10 @@ LIBS = -L${X11LIB} -lX11 ${XINERAMALIBS} ${FREETYPELIBS}
 
 # flags
 CPPFLAGS = -D_DEFAULT_SOURCE -D_BSD_SOURCE -D_XOPEN_SOURCE=700L -DVERSION=\"${VERSION}\" ${XINERAMAFLAGS}
-#CFLAGS   = -g -std=c99 -pedantic -Wall -O0 ${INCS} ${CPPFLAGS}
-CFLAGS   = -std=c99 -pedantic -Wall -Wno-deprecated-declarations -Os ${INCS} ${CPPFLAGS}
+# Development flags with more warnings
+CFLAGS   = -std=c99 -pedantic -Wall -Wextra -Wno-deprecated-declarations -Wno-unused-parameter -Os ${INCS} ${CPPFLAGS}
+# Debug flags
+#CFLAGS   = -g -std=c99 -pedantic -Wall -Wextra -O0 ${INCS} ${CPPFLAGS}
 LDFLAGS  = ${LIBS}
 
 # Solaris
