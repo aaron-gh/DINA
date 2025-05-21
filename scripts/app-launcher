@@ -9,6 +9,15 @@ import subprocess
 import glob
 import re
 import shlex
+import sys
+
+# Add verbose mode flag
+verbose = "-v" in sys.argv or "--verbose" in sys.argv
+
+def debug(message):
+    """Print debug message if verbose mode is enabled"""
+    if verbose:
+        print(f"DEBUG: {message}")
 
 def find_desktop_files():
     """Find all desktop files in standard locations"""
@@ -21,6 +30,8 @@ def find_desktop_files():
     for location in locations:
         desktop_files.extend(glob.glob(location))
     
+    debug(f"Searching for desktop files...")
+    debug(f"Found {len(desktop_files)} desktop files")
     return desktop_files
 
 def parse_desktop_file(desktop_file):
@@ -53,11 +64,17 @@ def parse_desktop_file(desktop_file):
                         name = line.strip()[5:]
                     elif line.startswith('Exec='):
                         exec_cmd = line.strip()[5:]
-                        # Remove field codes like %f, %F, %u, etc.
-                        exec_cmd = re.sub(r'\s*%[a-zA-Z]', '', exec_cmd)
+                        # Special care for Firefox PWA entries: preserve the --protocol %u argument
+                        if "firefoxpwa" in exec_cmd and "--protocol %u" in exec_cmd:
+                            exec_cmd = exec_cmd.replace("--protocol %u", "--protocol")
+                        else:
+                            # Remove field codes like %f, %F, %u, etc.
+                            exec_cmd = re.sub(r'\s*%[a-zA-Z]', '', exec_cmd)
                         # Make sure arguments are properly separated
                         exec_cmd = exec_cmd.strip()
-    except (IOError, UnicodeDecodeError):
+    except (IOError, UnicodeDecodeError) as e:
+        if verbose:
+            debug(f"Error reading {desktop_file}: {str(e)}")
         return None, None
     
     return name, exec_cmd
@@ -70,12 +87,19 @@ def main():
     for desktop_file in find_desktop_files():
         name, exec_cmd = parse_desktop_file(desktop_file)
         if name and exec_cmd:
+            debug(f"{desktop_file} -> Name: {name}, Exec: {exec_cmd}")
             # Check if it's a Firefox PWA
             if "firefoxpwa" in exec_cmd:
+                debug(f"Found Firefox PWA: {name}")
                 if name not in pwa_map:
                     pwa_map[name] = exec_cmd
             elif name not in app_map:  # Regular applications
                 app_map[name] = exec_cmd
+    
+    # Debug PWA count
+    debug(f"Found {len(pwa_map)} Firefox PWAs")
+    for name, cmd in pwa_map.items():
+        debug(f"Adding PWA to menu: {name} -> {cmd}")
     
     # Format entries for YAD
     entries = []
@@ -88,6 +112,7 @@ def main():
     if pwa_map:
         entries.append(f"--- Web Apps ---|")
         for name, exec_cmd in sorted(pwa_map.items(), key=lambda x: x[0].lower()):
+            # Using a clean label without trailing format placeholders
             entries.append(f"{name} (Web App)|{exec_cmd}")
     
     if not entries:

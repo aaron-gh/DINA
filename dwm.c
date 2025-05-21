@@ -321,9 +321,9 @@ applysizehints(Client *c, int *x, int *y, int *w, int *h, int interact)
 	int baseismin;
 	Monitor *m = c->mon;
 
-	/* set minimum possible */
-	*w = MAX(1, *w);
-	*h = MAX(1, *h);
+	/* set minimum possible - forcing large windows */
+	*w = MAX(800, *w);
+	*h = MAX(600, *h);
 	if (interact) {
 		if (*x > sw)
 			*x = sw - WIDTH(c);
@@ -347,6 +347,16 @@ applysizehints(Client *c, int *x, int *y, int *w, int *h, int interact)
 		*h = bh;
 	if (*w < bh)
 		*w = bh;
+	
+	/* Force large window sizes regardless of application hints */
+	if (!c->isfloating && c->mon->lt[c->mon->sellt]->arrange) {
+		/* For tiled windows, maximize to available space */
+		/* Size hints are completely ignored */
+		return *x != c->x || *y != c->y || *w != c->w || *h != c->h;
+	}
+	
+	/* Only apply hints for floating windows if resizehints is enabled 
+	   Note: We're actually still forcing large minimum sizes regardless */
 	if (resizehints || c->isfloating || !c->mon->lt[c->mon->sellt]->arrange) {
 		if (!c->hintsvalid)
 			updatesizehints(c);

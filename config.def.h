@@ -22,7 +22,7 @@ static const Rule rules[] = { 0 };
 /* layout: only monocle is kept */
 static const float mfact     = 0.55;    // Master area size (unused in monocle)
 static const int nmaster     = 1;       // Number of windows in master (unused in monocle)
-static const int resizehints = 1;       // Respect size hints
+static const int resizehints = 0;       // Ignore size hints
 static const int lockfullscreen = 1;    // Force focus on fullscreen windows
 
 static const Layout layouts[] = {
