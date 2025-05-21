@@ -8,7 +8,7 @@ CORE_SRC = core/dina.c core/config.c core/event.c
 # Window management source files
 WM_SRC = wm/window.c wm/monitor.c wm/tag.c wm/rules.c
 # UI source files
-UI_SRC = ui/drw.c
+UI_SRC = ui/drw.c ui/ui.c
 # Accessibility source files
 A11Y_SRC = a11y/notify.c a11y/workspace_memory.c
 # Utility source files

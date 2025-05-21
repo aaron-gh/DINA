@@ -8,7 +8,7 @@
 #ifndef _TAG_H
 #define _TAG_H
 
-#include "core/dina.h"
+#include "../core/dina.h"
 
 /**
  * @brief View a tag

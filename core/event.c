@@ -17,10 +17,15 @@
 #include "../wm/window.h"
 #include "../wm/monitor.h"
 #include "../wm/tag.h"
+#include "../wm/rules.h"
+#include "../ui/ui.h"
 #include "../util/util.h"
 
 /* Running state */
 int running = 1;
+
+/* Error handler function pointer */
+static int (*xerrorxlib)(Display *, XErrorEvent *);
 
 /* Event handler function pointers */
 static void (*handler[LASTEvent])(XEvent *) = {
@@ -60,6 +65,22 @@ void
 event_cleanup(void)
 {
     /* Nothing to clean up at the moment */
+}
+
+/**
+ * @brief Run the event loop
+ * 
+ * Process X events until termination
+ */
+void
+run(void)
+{
+    XEvent ev;
+    /* main event loop */
+    XSync(dpy, False);
+    while (running && !XNextEvent(dpy, &ev))
+        if (handler[ev.type])
+            handler[ev.type](&ev); /* call handler */
 }
 
 /**
@@ -166,12 +187,16 @@ buttonpress(XEvent *e)
         if (i < LENGTH(tags)) {
             click = ClkTagBar;
             arg.ui = 1 << i;
-        } else if (ev->x < selmon->ww) {
+        } else if (ev->x < x + TEXTW(selmon->ltsymbol))
             click = ClkLtSymbol;
-        } else
+        else if (ev->x > selmon->ww - (int)TEXTW(stext))
             click = ClkStatusText;
+        else
+            click = ClkWinTitle;
     } else if ((c = wintoclient(ev->window))) {
         focus(c);
+        restack(selmon);
+        XAllowEvents(dpy, ReplayPointer, CurrentTime);
         click = ClkClientWin;
     }
     for (i = 0; i < LENGTH(buttons); i++)
@@ -204,7 +229,333 @@ clientmessage(XEvent *e)
     }
 }
 
-/* Other event handler implementations will be added here */
+/**
+ * @brief Handle configure request events
+ * 
+ * @param e X event
+ */
+void
+configurerequest(XEvent *e)
+{
+    Client *c;
+    Monitor *m;
+    XConfigureRequestEvent *ev = &e->xconfigurerequest;
+    XWindowChanges wc;
+
+    if ((c = wintoclient(ev->window))) {
+        if (ev->value_mask & CWBorderWidth)
+            c->bw = ev->border_width;
+        else if (c->isfloating || !selmon->lt[selmon->sellt]->arrange) {
+            m = c->mon;
+            if (ev->value_mask & CWX) {
+                c->oldx = c->x;
+                c->x = m->mx + ev->x;
+            }
+            if (ev->value_mask & CWY) {
+                c->oldy = c->y;
+                c->y = m->my + ev->y;
+            }
+            if (ev->value_mask & CWWidth) {
+                c->oldw = c->w;
+                c->w = ev->width;
+            }
+            if (ev->value_mask & CWHeight) {
+                c->oldh = c->h;
+                c->h = ev->height;
+            }
+            if ((c->x + c->w) > m->mx + m->mw && c->isfloating)
+                c->x = m->mx + (m->mw / 2 - WIDTH(c) / 2); /* center in x direction */
+            if ((c->y + c->h) > m->my + m->mh && c->isfloating)
+                c->y = m->my + (m->mh / 2 - HEIGHT(c) / 2); /* center in y direction */
+            if ((ev->value_mask & (CWX|CWY)) && !(ev->value_mask & (CWWidth|CWHeight)))
+                configure(c);
+            if (ISVISIBLE(c))
+                XMoveResizeWindow(dpy, c->win, c->x, c->y, c->w, c->h);
+        } else
+            configure(c);
+    } else {
+        wc.x = ev->x;
+        wc.y = ev->y;
+        wc.width = ev->width;
+        wc.height = ev->height;
+        wc.border_width = ev->border_width;
+        wc.sibling = ev->above;
+        wc.stack_mode = ev->detail;
+        XConfigureWindow(dpy, ev->window, ev->value_mask, &wc);
+    }
+    XSync(dpy, False);
+}
+
+/**
+ * @brief Handle configure notify events
+ * 
+ * @param e X event
+ */
+void
+configurenotify(XEvent *e)
+{
+    Monitor *m;
+    Client *c;
+    XConfigureEvent *ev = &e->xconfigure;
+    int dirty;
+
+    /* updategeom handling sucks, needs to be simplified */
+    if (ev->window == root) {
+        dirty = (sw != ev->width || sh != ev->height);
+        sw = ev->width;
+        sh = ev->height;
+        if (updategeom() || dirty) {
+            /* Bar height is defined in dina.c */
+            int bar_height = 0;  /* Temporary value until modularization is complete */
+            drw_resize(drw, sw, bar_height);
+            updatebars();
+            for (m = mons; m; m = m->next) {
+                for (c = m->clients; c; c = c->next)
+                    if (c->isfullscreen)
+                        resizeclient(c, m->mx, m->my, m->mw, m->mh);
+                XMoveResizeWindow(dpy, m->barwin, m->wx, m->by, m->ww, bar_height);
+            }
+            focus(NULL);
+            arrange(NULL);
+        }
+    }
+}
+
+/**
+ * @brief Handle destroy notify events
+ * 
+ * @param e X event
+ */
+void
+destroynotify(XEvent *e)
+{
+    Client *c;
+    XDestroyWindowEvent *ev = &e->xdestroywindow;
+
+    if ((c = wintoclient(ev->window)))
+        unmanage(c, 1);
+}
+
+/**
+ * @brief Handle enter notify events
+ * 
+ * @param e X event
+ */
+void
+enternotify(XEvent *e)
+{
+    Client *c;
+    Monitor *m;
+    XCrossingEvent *ev = &e->xcrossing;
+
+    if ((ev->mode != NotifyNormal || ev->detail == NotifyInferior) && ev->window != root)
+        return;
+    c = wintoclient(ev->window);
+    m = c ? c->mon : wintomon(ev->window);
+    if (m != selmon) {
+        unfocus(selmon->sel, 1);
+        selmon = m;
+    } else if (!c || c == selmon->sel)
+        return;
+    focus(c);
+}
+
+/**
+ * @brief Handle expose events
+ * 
+ * @param e X event
+ */
+void
+expose(XEvent *e)
+{
+    Monitor *m;
+    XExposeEvent *ev = &e->xexpose;
+
+    if (ev->count == 0 && (m = wintomon(ev->window)))
+        drawbar(m);
+}
+
+/**
+ * @brief Handle focus in events
+ * 
+ * @param e X event
+ */
+void
+focusin(XEvent *e)
+{
+    XFocusChangeEvent *ev = &e->xfocus;
+
+    if (selmon->sel && ev->window != selmon->sel->win)
+        setfocus(selmon->sel);
+}
+
+/**
+ * @brief Handle key press events
+ * 
+ * @param e X event
+ */
+void
+keypress(XEvent *e)
+{
+    unsigned int i;
+    KeySym keysym;
+    XKeyEvent *ev;
+
+    ev = &e->xkey;
+    keysym = XKeycodeToKeysym(dpy, (KeyCode)ev->keycode, 0);
+    for (i = 0; i < LENGTH(keys); i++)
+        if (keysym == keys[i].keysym
+        && CLEANMASK(keys[i].mod) == CLEANMASK(ev->state)
+        && keys[i].func)
+            keys[i].func(&(keys[i].arg));
+}
+
+/**
+ * @brief Handle mapping notify events
+ * 
+ * @param e X event
+ */
+void
+mappingnotify(XEvent *e)
+{
+    XMappingEvent *ev = &e->xmapping;
+
+    XRefreshKeyboardMapping(ev);
+    if (ev->request == MappingKeyboard)
+        grabkeys();
+}
+
+/**
+ * @brief Handle map request events
+ * 
+ * @param e X event
+ */
+void
+maprequest(XEvent *e)
+{
+    static XWindowAttributes wa;
+    XMapRequestEvent *ev = &e->xmaprequest;
+
+    if (!XGetWindowAttributes(dpy, ev->window, &wa) || wa.override_redirect)
+        return;
+    if (!wintoclient(ev->window))
+        manage(ev->window, &wa);
+}
+
+/**
+ * @brief Handle motion notify events
+ * 
+ * @param e X event
+ */
+void
+motionnotify(XEvent *e)
+{
+    static Monitor *mon = NULL;
+    Monitor *m;
+    XMotionEvent *ev = &e->xmotion;
+
+    if (ev->window != root)
+        return;
+    if ((m = recttomon(ev->x_root, ev->y_root, 1, 1)) != mon && mon) {
+        unfocus(selmon->sel, 1);
+        selmon = m;
+        focus(NULL);
+    }
+    mon = m;
+}
+
+/**
+ * @brief Handle property notify events
+ * 
+ * @param e X event
+ */
+void
+propertynotify(XEvent *e)
+{
+    Client *c;
+    Window trans;
+    XPropertyEvent *ev = &e->xproperty;
+
+    if ((ev->window == root) && (ev->atom == XA_WM_NAME))
+        updatestatus();
+    else if (ev->state == PropertyDelete)
+        return; /* ignore */
+    else if ((c = wintoclient(ev->window))) {
+        switch(ev->atom) {
+        default: break;
+        case XA_WM_TRANSIENT_FOR:
+            if (!c->isfloating && (XGetTransientForHint(dpy, c->win, &trans)) &&
+                (c->isfloating = (wintoclient(trans)) != NULL))
+                arrange(c->mon);
+            break;
+        case XA_WM_NORMAL_HINTS:
+            c->hintsvalid = 0;
+            break;
+        case XA_WM_HINTS:
+            updatewmhints(c);
+            drawbars();
+            break;
+        }
+        if (ev->atom == XA_WM_NAME || ev->atom == netatom[NetWMName]) {
+            updatetitle(c);
+            if (c == c->mon->sel)
+                drawbar(c->mon);
+        }
+        if (ev->atom == netatom[NetWMWindowType])
+            updatewindowtype(c);
+    }
+}
+
+/**
+ * @brief Handle unmap notify events
+ * 
+ * @param e X event
+ */
+void
+unmapnotify(XEvent *e)
+{
+    Client *c;
+    XUnmapEvent *ev = &e->xunmap;
+
+    if ((c = wintoclient(ev->window))) {
+        if (ev->send_event)
+            setclientstate(c, WithdrawnState);
+        else
+            unmanage(c, 0);
+    }
+}
+
+/**
+ * @brief Send an event to a window
+ * 
+ * @param c Client to send event to
+ * @param proto Atom representing the protocol
+ * @return 1 if successful, 0 otherwise
+ */
+int
+sendevent(Client *c, Atom proto)
+{
+    int n;
+    Atom *protocols;
+    int exists = 0;
+    XEvent ev;
+
+    if (XGetWMProtocols(dpy, c->win, &protocols, &n)) {
+        while (!exists && n--)
+            exists = protocols[n] == proto;
+        XFree(protocols);
+    }
+    if (exists) {
+        ev.type = ClientMessage;
+        ev.xclient.window = c->win;
+        ev.xclient.message_type = wmatom[WMProtocols];
+        ev.xclient.format = 32;
+        ev.xclient.data.l[0] = proto;
+        ev.xclient.data.l[1] = CurrentTime;
+        XSendEvent(dpy, c->win, False, NoEventMask, &ev);
+    }
+    return exists;
+}
 
 /**
  * @brief X error handler

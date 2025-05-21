@@ -8,7 +8,7 @@
 #ifndef _WINDOW_H
 #define _WINDOW_H
 
-#include "core/dina.h"
+#include "../core/dina.h"
 
 /* Window Management Functions */
 
@@ -123,6 +123,29 @@ void detach(Client *c);
 void setfullscreen(Client *c, int fullscreen);
 
 /**
+ * @brief Set client state
+ * 
+ * @param c Client to set state for
+ * @param state New state
+ */
+void setclientstate(Client *c, long state);
+
+/**
+ * @brief Update window type
+ * 
+ * @param c Client to update
+ */
+void updatewindowtype(Client *c);
+
+/**
+ * @brief Get client from window
+ * 
+ * @param w Window to find client for
+ * @return Client* Client containing the window or NULL
+ */
+Client *wintoclient(Window w);
+
+/**
  * @brief Close a client window
  * 
  * @param arg Command argument (unused)
@@ -135,5 +158,55 @@ void killclient(const Arg *arg);
  * @param arg Command argument (.i = direction)
  */
 void focusstack(const Arg *arg);
+
+/**
+ * @brief Move window with mouse
+ * 
+ * @param arg Command argument (unused)
+ */
+void movemouse(const Arg *arg);
+
+/**
+ * @brief Resize window with mouse
+ * 
+ * @param arg Command argument (unused)
+ */
+void resizemouse(const Arg *arg);
+
+/**
+ * @brief Quit DINA
+ * 
+ * @param arg Command argument (unused)
+ */
+void quit(const Arg *arg);
+
+/**
+ * @brief Set client urgent state
+ * 
+ * @param c Client to update
+ * @param urg 1 for urgent, 0 for normal
+ */
+void seturgent(Client *c, int urg);
+
+/**
+ * @brief Update window manager hints
+ * 
+ * @param c Client to update
+ */
+void updatewmhints(Client *c);
+
+/**
+ * @brief Reconfigure client window
+ * 
+ * @param c Client to configure
+ */
+void configure(Client *c);
+
+/**
+ * @brief Restack windows on monitor
+ * 
+ * @param m Monitor to restack
+ */
+void restack(Monitor *m);
 
 #endif /* _WINDOW_H */

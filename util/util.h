@@ -18,6 +18,13 @@
 /* Macro for text width */
 #define TEXTW(X) (drw_fontset_getwidth(drw, (X)) + lrpad)
 
+/* Window geometry macros */
+#define WIDTH(X)  ((X)->w + 2 * (X)->bw)
+#define HEIGHT(X) ((X)->h + 2 * (X)->bw)
+
+/* Window visibility macro */
+#define ISVISIBLE(C) ((C)->tags & (C)->mon->tagset[(C)->mon->seltags])
+
 /* Macro for maximum of two values */
 #define MAX(A, B) ((A) > (B) ? (A) : (B))
 

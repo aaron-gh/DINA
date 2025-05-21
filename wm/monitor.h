@@ -8,7 +8,7 @@
 #ifndef _MONITOR_H
 #define _MONITOR_H
 
-#include "core/dina.h"
+#include "../core/dina.h"
 
 /**
  * @brief Create a new monitor

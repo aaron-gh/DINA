@@ -16,6 +16,12 @@
 /* Includes from original dwm */
 #include "ui/drw.h"
 
+/* EWMH atoms */
+enum { WMProtocols, WMDelete, WMState, WMTakeFocus, WMLast }; /* default atoms */
+enum { NetSupported, NetWMName, NetWMState, NetWMCheck,
+       NetWMFullscreen, NetActiveWindow, NetWMWindowType,
+       NetWMWindowTypeDialog, NetClientList, NetLast }; /* EWMH atoms */
+
 /* forward declarations */
 typedef struct Client Client;
 typedef struct Monitor Monitor;
@@ -95,6 +101,7 @@ struct Client {
     int bw, oldbw;        /**< Border width */
     unsigned int tags;    /**< Tags (workspaces) */
     int isfixed, isfloating, isurgent, neverfocus, oldstate, isfullscreen; /**< States */
+    int hintsvalid;       /**< Whether size hints are valid */
     Client *next;         /**< Next client in list */
     Client *snext;        /**< Next client in stack */
     Monitor *mon;         /**< Monitor */
@@ -138,9 +145,12 @@ extern Display *dpy;
 extern Window root;
 extern int screen;
 extern int sw, sh;
+extern int lrpad;              /* sum of left and right padding for text */
+extern char stext[256];        /* status text */
 extern unsigned int numlockmask;
 extern Drw *drw;
 extern Monitor *mons, *selmon;
 extern const char *tags[];
+extern Atom wmatom[WMLast], netatom[NetLast];
 
 #endif /* _DINA_H */
