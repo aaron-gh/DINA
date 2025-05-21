@@ -8,12 +8,20 @@
 set -e
 
 # Source version from config.mk
+# First try relative to packaging directory
 CONFIG_MK="../config.mk"
 if [ -f "$CONFIG_MK" ]; then
     VERSION=$(grep "^VERSION = " "$CONFIG_MK" | cut -d "=" -f2 | tr -d ' ')
+# Try from repo root
+elif [ -f "./config.mk" ]; then
+    VERSION=$(grep "^VERSION = " "./config.mk" | cut -d "=" -f2 | tr -d ' ')
+# Try absolute path from repo root
+elif [ -f "/build/config.mk" ]; then
+    VERSION=$(grep "^VERSION = " "/build/config.mk" | cut -d "=" -f2 | tr -d ' ')
 else
-    echo "Error: config.mk not found!"
-    exit 1
+    # Default to version from argument or hardcoded value
+    VERSION="${1:-1.1}"
+    echo "Warning: config.mk not found, using version $VERSION"
 fi
 
 echo "=== DINA Debian Package Builder ==="
