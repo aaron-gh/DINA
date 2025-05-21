@@ -27,22 +27,36 @@ def parse_desktop_file(desktop_file):
     """Extract name and command from desktop file"""
     name = None
     exec_cmd = None
+    in_desktop_entry = False
+    in_desktop_action = False
     
     try:
         with open(desktop_file, 'r', encoding='utf-8') as f:
             for line in f:
-                if line.startswith('Name='):
-                    name = line.strip()[5:]
-                elif line.startswith('Exec='):
-                    exec_cmd = line.strip()[5:]
-                    # Remove field codes like %f, %F, %u, etc.
-                    exec_cmd = re.sub(r'\s*%[a-zA-Z]', '', exec_cmd)
-                    # Make sure arguments are properly separated
-                    exec_cmd = exec_cmd.strip()
+                # Track sections in the desktop file
+                if line.strip() == "[Desktop Entry]":
+                    in_desktop_entry = True
+                    in_desktop_action = False
+                    continue
+                elif line.startswith("[Desktop Action"):
+                    in_desktop_entry = False
+                    in_desktop_action = True
+                    continue
+                elif line.startswith("["):
+                    in_desktop_entry = False
+                    in_desktop_action = False
+                    continue
                 
-                # If we've found both name and exec, we can stop reading
-                if name and exec_cmd:
-                    break
+                # Only process lines from the Desktop Entry section
+                if in_desktop_entry:
+                    if line.startswith('Name='):
+                        name = line.strip()[5:]
+                    elif line.startswith('Exec='):
+                        exec_cmd = line.strip()[5:]
+                        # Remove field codes like %f, %F, %u, etc.
+                        exec_cmd = re.sub(r'\s*%[a-zA-Z]', '', exec_cmd)
+                        # Make sure arguments are properly separated
+                        exec_cmd = exec_cmd.strip()
     except (IOError, UnicodeDecodeError):
         return None, None
     
@@ -51,15 +65,30 @@ def parse_desktop_file(desktop_file):
 def main():
     # Find and parse desktop files
     app_map = {}
+    pwa_map = {}  # Separate map for web apps
+    
     for desktop_file in find_desktop_files():
         name, exec_cmd = parse_desktop_file(desktop_file)
-        if name and exec_cmd and name not in app_map:
-            app_map[name] = exec_cmd
+        if name and exec_cmd:
+            # Check if it's a Firefox PWA
+            if "firefoxpwa" in exec_cmd:
+                if name not in pwa_map:
+                    pwa_map[name] = exec_cmd
+            elif name not in app_map:  # Regular applications
+                app_map[name] = exec_cmd
     
     # Format entries for YAD
     entries = []
+    
+    # Add regular applications
     for name, exec_cmd in sorted(app_map.items(), key=lambda x: x[0].lower()):
         entries.append(f"{name}|{exec_cmd}")
+        
+    # Add Firefox PWAs with a separator if any exist
+    if pwa_map:
+        entries.append(f"--- Web Apps ---|")
+        for name, exec_cmd in sorted(pwa_map.items(), key=lambda x: x[0].lower()):
+            entries.append(f"{name} (Web App)|{exec_cmd}")
     
     if not entries:
         print("No applications found")
@@ -90,13 +119,26 @@ def main():
                 cmd = parts[1]
                 if cmd:
                     print(f"Launching: {cmd}")
-                    # Use Popen to avoid blocking and detach from parent process
-                    subprocess.Popen(
-                        shlex.split(cmd), 
-                        stdout=subprocess.DEVNULL, 
-                        stderr=subprocess.DEVNULL,
-                        start_new_session=True
-                    )
+                    # Handle special case for Firefox PWAs which might need shell=True
+                    if "firefoxpwa" in cmd:
+                        print(f"Launching Firefox PWA: {cmd}")
+                        # For Firefox PWAs, we need to handle quotes in the URL properly
+                        # Using shell=True ensures proper handling of complex command
+                        subprocess.Popen(
+                            cmd,
+                            shell=True,
+                            stdout=subprocess.DEVNULL, 
+                            stderr=subprocess.DEVNULL,
+                            start_new_session=True
+                        )
+                    else:
+                        # Use Popen to avoid blocking and detach from parent process
+                        subprocess.Popen(
+                            shlex.split(cmd), 
+                            stdout=subprocess.DEVNULL, 
+                            stderr=subprocess.DEVNULL,
+                            start_new_session=True
+                        )
     except Exception as e:
         print(f"Error launching application: {e}")
 
