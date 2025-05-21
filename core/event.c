@@ -291,6 +291,9 @@ configurerequest(XEvent *e)
  * 
  * @param e X event
  */
+/* For the modular design - temporary stubs */
+void updateclientlist(void) {}
+
 void
 configurenotify(XEvent *e)
 {
