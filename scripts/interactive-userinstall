@@ -156,6 +156,35 @@ def reload_sxhkd():
         print_warning(f"Error reloading sxhkd: {e}")
         return False
 
+def install_scripts():
+    """Install all scripts to the user's ~/.local/bin directory"""
+    try:
+        # Get the script directory and source script paths
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        bin_dir = os.path.expanduser("~/.local/bin")
+        
+        # Create bin directory if it doesn't exist
+        if not os.path.exists(bin_dir):
+            os.makedirs(bin_dir)
+            print_info(f"Created directory {bin_dir}")
+        
+        # Get the list of scripts from the script directory
+        scripts = [f for f in os.listdir(script_dir) if os.path.isfile(os.path.join(script_dir, f)) 
+                  and not f.startswith('__') and not f.endswith('.pyc')]
+        
+        # Copy each script and make it executable
+        for script in scripts:
+            source = os.path.join(script_dir, script)
+            dest = os.path.join(bin_dir, script)
+            shutil.copy2(source, dest)
+            os.chmod(dest, 0o755)  # rwxr-xr-x
+            print_success(f"Installed {script} to {bin_dir}")
+        
+        return True
+    except Exception as e:
+        print_error(f"Failed to install scripts: {e}")
+        return False
+
 def main():
     # Show welcome message
     print_header("DINA Interactive Setup")
@@ -292,10 +321,28 @@ def main():
     if updated and reload_sxhkd():
         print_success("Shortcuts reloaded")
     
+    # Install all scripts to ~/.local/bin
+    print_header("Installing DINA Scripts")
+    if install_scripts():
+        print_success("All scripts installed to ~/.local/bin")
+    else:
+        print_warning("Some scripts may not have been installed correctly")
+    
     print_header("Setup Completed Successfully!")
 
 if __name__ == "__main__":
     try:
+        # Check if we're just testing the script installation
+        if len(sys.argv) > 1 and sys.argv[1] == "--test-script-install":
+            print_header("Testing Script Installation")
+            if install_scripts():
+                print_success("All scripts installed to ~/.local/bin")
+                sys.exit(0)
+            else:
+                print_error("Script installation failed")
+                sys.exit(1)
+        
+        # Run the normal interactive setup
         main()
     except KeyboardInterrupt:
         print("\nSetup cancelled by user")
