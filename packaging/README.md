@@ -63,7 +63,7 @@ The resulting Debian package includes:
 - DINA binary at `/usr/bin/DINA`
 - Man page at `/usr/share/man/man1/DINA.1`
 - Accessibility scripts at `/usr/share/DINA/scripts/`
-- sxhkd configuration at `/etc/skel/.config/sxhkd/sxhkdrc`
+- DINA configuration template at `/etc/skel/.config/dina/config.template`
 - First-run setup script at `/usr/share/DINA/dina-first-run.sh`
 - XSession entry at `/usr/share/xsessions/dina.desktop`
 - Autostart entry at `/etc/xdg/autostart/dina-first-run.desktop`

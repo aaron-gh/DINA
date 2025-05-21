@@ -28,24 +28,25 @@ static const unsigned int borderpx  = 1;           // Border pixel of windows
 static const unsigned int snap      = 32;          // Snap pixel for window movement
 static const int showbar            = 0;           // No status bar — we're headless
 static const int topbar             = 1;           // Irrelevant since bar is hidden
-static const char *fonts[]          = { "monospace:size=10" }; // Font for any visible fallback
-static const char dmenufont[]       = "monospace:size=10";     // Placeholder, dmenu not used
+__attribute__((unused)) static const char *fonts[] = { "monospace:size=10" }; // Font for any visible fallback
+__attribute__((unused)) static const char dmenufont[] = "monospace:size=10"; // Placeholder, dmenu not used
 static const char col_black[]       = "#000000";   // All visual elements black for screen reader use
 
 /* For ui/drw.c */
 enum { SchemeNorm, SchemeSel, SchemeLast }; // Color schemes
 
-/* Click locations for mouse actions */
-enum { ClkTagBar, ClkLtSymbol, ClkStatusText, ClkWinTitle, ClkClientWin, ClkRootWin, ClkLast };
+/* Click locations for mouse actions - simplified for headless mode */
+enum { ClkClientWin, ClkRootWin, ClkLast }; /* Removed status bar related click locations */
 
 // Color scheme (also all black)
-static const char *colors[][3]      = {
+__attribute__((unused)) static const char *colors[][3] = {
 	[SchemeNorm] = { col_black, col_black, col_black }, // Normal: fg, bg, border
 	[SchemeSel]  = { col_black, col_black, col_black }, // Selected window
 };
 
 /* tags (virtual workspaces) */
-const char *tags[] = { "1", "2", "3", "4", "5", "6", "7", "8", "9" };
+#define NUMTAGS 9  /* Number of tags */
+extern const char *tags[]; /* Defined in config.c */
 
 /* no window rules */
 static const Rule rules[] = { 
@@ -72,9 +73,7 @@ static const Layout layouts[] = {
 /* helper macro to spawn shell commands */
 #define SHCMD(cmd) { .v = (const char*[]){ "/bin/sh", "-c", cmd, NULL } }
 
-/* dummy dmenu command to satisfy references — not used */
-static char dmenumon[2] = "0";
-static const char *dmenucmd[] = { "true", NULL };
+/* Removed dmenu references - not needed */
 
 /* key bindings — minimal, accessible */
 static const Key keys[] = {
@@ -103,18 +102,20 @@ static const Key keys[] = {
 	{ MODKEY|ShiftMask,             XK_q,      quit,           {0} }         // Quit DINA
 };
 
-/* mouse button definitions — mostly left as placeholders */
+/* mouse button definitions - minimal for headless mode */
 static const Button buttons[] = {
 	{ ClkClientWin,         MODKEY,         Button1,        movemouse,      {0} },
-	{ ClkClientWin,         MODKEY,         Button2,        NULL,           {0} }, // disabled togglefloating
 	{ ClkClientWin,         MODKEY,         Button3,        resizemouse,    {0} },
-	{ ClkTagBar,            0,              Button1,        view,           {0} },
-	{ ClkTagBar,            0,              Button3,        NULL,           {0} }, // toggleview removed
-	{ ClkTagBar,            MODKEY,         Button1,        tag,            {0} },
-	{ ClkTagBar,            MODKEY,         Button3,        NULL,           {0} }, // toggletag removed
+	/* Removed all status bar and tag bar buttons - not needed for headless mode */
 };
 
 /* Config functions */
 void config_init(void);
+void grabkeys(void);
+void updatenumlockmask(void);
+void grabbuttons(Client *c, int focused);
+unsigned int cleanmask(unsigned int mask);
+const Key *config_get_key(KeySym keysym, unsigned int mod);
+const Button *config_get_button(unsigned int click, unsigned int button, unsigned int mod);
 
 #endif /* _CONFIG_H */

@@ -15,10 +15,126 @@
 #include "dina.h"
 #include "../util/util.h"
 
+/* External variables from dina.c */
+extern Display *dpy;
+extern Window root;
+extern unsigned int numlockmask;
+
+/* Global definitions from config.h */
+const char *tags[] = { "1", "2", "3", "4", "5", "6", "7", "8", "9" };
+
 /* Define TAGMASK (all valid tags) */
 #define TAGMASK ((1 << LENGTH(tags)) - 1)
 
+/* Define BUTTONMASK (button events) */
+#define BUTTONMASK  (ButtonPressMask|ButtonReleaseMask)
+
+/* Define MOUSEMASK (mouse events) */
+#define MOUSEMASK   (BUTTONMASK|PointerMotionMask)
+
 /* User configuration is already included via config.h */
+
+/**
+ * @brief Clean modifier mask
+ * 
+ * Remove numlock and capslock masks from modifiers
+ * 
+ * @param mask Modifier mask
+ * @return Cleaned mask
+ */
+unsigned int
+cleanmask(unsigned int mask)
+{
+    return (mask & ~(numlockmask|LockMask) & (ShiftMask|ControlMask|Mod1Mask|Mod2Mask|Mod3Mask|Mod4Mask|Mod5Mask));
+}
+
+/* Define CLEANMASK as a macro that calls our cleanmask function */
+#undef CLEANMASK
+#define CLEANMASK(mask) cleanmask(mask)
+
+/**
+ * @brief Update the numlock mask
+ * 
+ * Determine which modifier bit corresponds to numlock
+ */
+void
+updatenumlockmask(void)
+{
+    unsigned int i, j;
+    XModifierKeymap *modmap;
+
+    numlockmask = 0;
+    modmap = XGetModifierMapping(dpy);
+    for (i = 0; i < 8; i++)
+        for (j = 0; j < (unsigned int)modmap->max_keypermod; j++)
+            if (modmap->modifiermap[i * modmap->max_keypermod + j]
+                == XKeysymToKeycode(dpy, XK_Num_Lock))
+                numlockmask = (1 << i);
+    XFreeModifiermap(modmap);
+}
+
+/**
+ * @brief Grab keyboard buttons for a client
+ * 
+ * Set up button grabs for a client window
+ * 
+ * @param c Client to grab buttons for
+ * @param focused Whether the client is focused
+ */
+void
+grabbuttons(Client *c, int focused)
+{
+    updatenumlockmask();
+    {
+        unsigned int i, j;
+        unsigned int modifiers[] = { 0, LockMask, numlockmask, numlockmask|LockMask };
+        XUngrabButton(dpy, AnyButton, AnyModifier, c->win);
+        if (!focused)
+            XGrabButton(dpy, AnyButton, AnyModifier, c->win, False,
+                BUTTONMASK, GrabModeSync, GrabModeSync, None, None);
+        for (i = 0; i < LENGTH(buttons); i++)
+            if (buttons[i].click == ClkClientWin)
+                for (j = 0; j < LENGTH(modifiers); j++)
+                    XGrabButton(dpy, buttons[i].button,
+                        buttons[i].mask | modifiers[j],
+                        c->win, False, BUTTONMASK,
+                        GrabModeAsync, GrabModeSync, None, None);
+    }
+}
+
+/**
+ * @brief Grab keyboard keys
+ * 
+ * Set up key grabs for the root window
+ */
+void
+grabkeys(void)
+{
+    updatenumlockmask();
+    {
+        unsigned int i, j;
+        unsigned int k;
+        unsigned int modifiers[] = { 0, LockMask, numlockmask, numlockmask|LockMask };
+        int start, end, skip;
+        KeySym *syms;
+
+        XUngrabKey(dpy, AnyKey, AnyModifier, root);
+        XDisplayKeycodes(dpy, &start, &end);
+        syms = XGetKeyboardMapping(dpy, start, end - start + 1, &skip);
+        if (!syms)
+            return;
+        for (k = (unsigned int)start; k <= (unsigned int)end; k++)
+            for (i = 0; i < LENGTH(keys); i++)
+                /* skip modifier codes, we do that ourselves */
+                if (keys[i].keysym == syms[(k - (unsigned int)start) * skip])
+                    for (j = 0; j < LENGTH(modifiers); j++)
+                        XGrabKey(dpy, k,
+                            keys[i].mod | modifiers[j],
+                            root, True,
+                            GrabModeAsync, GrabModeAsync);
+        XFree(syms);
+    }
+}
 
 /**
  * @brief Validate a tag number
@@ -28,10 +144,10 @@
  * @param tag Tag number (0-based)
  * @return 1 if valid, 0 otherwise
  */
-static int
-validate_tag(int tag)
+__attribute__((unused)) static int
+validate_tag(unsigned int tag)
 {
-    return (tag >= 0 && tag < LENGTH(tags));
+    return (tag < LENGTH(tags));
 }
 
 /**
@@ -47,6 +163,9 @@ config_init(void)
     if (!config_validate()) {
         die("DINA: Invalid configuration");
     }
+    
+    /* Set up keyboard and mouse bindings */
+    grabkeys();
 }
 
 /**
@@ -59,7 +178,7 @@ config_init(void)
 int
 config_validate(void)
 {
-    int i;
+    unsigned int i;
     
     /* Validate fonts */
     if (LENGTH(fonts) < 1) {
@@ -121,7 +240,7 @@ config_validate(void)
 const Key *
 config_get_key(KeySym keysym, unsigned int mod)
 {
-    int i;
+    unsigned int i;
     
     for (i = 0; i < LENGTH(keys); i++) {
         if (keysym == keys[i].keysym && CLEANMASK(mod) == CLEANMASK(keys[i].mod)) {
@@ -145,7 +264,7 @@ config_get_key(KeySym keysym, unsigned int mod)
 const Button *
 config_get_button(unsigned int click, unsigned int button, unsigned int mod)
 {
-    int i;
+    unsigned int i;
     
     for (i = 0; i < LENGTH(buttons); i++) {
         if (click == buttons[i].click && button == buttons[i].button && 

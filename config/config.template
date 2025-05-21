@@ -1,0 +1,91 @@
+# DINA Window Manager Configuration
+# Template configuration file
+
+[appearance]
+border_width = 1
+snap_distance = 32
+show_bar = false
+font = "monospace:size=10"
+
+[layout]
+default_layout = "monocle"
+resize_hints = false
+lock_fullscreen = true
+
+[workspaces]
+tags = ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
+tag_names = [
+  "Main", 
+  "Web", 
+  "Code", 
+  "Media", 
+  "Chat", 
+  "Files", 
+  "Seven", 
+  "Eight", 
+  "Nine"
+]
+
+[keybindings]
+modifier = "super"
+
+# Default keybindings
+"modifier+j" = "focus_previous"
+"modifier+l" = "focus_next"
+"modifier+k" = "close_window"
+"modifier+BackSpace" = "exec:~/.local/bin/session-menu"
+"modifier+a" = "exec:~/.local/bin/app-launcher"
+"modifier+b" = "exec:~/.local/bin/toggle-blackout"
+"modifier+Shift+q" = "quit"
+
+# Workspace switching
+"modifier+1" = "view_tag_1"
+"modifier+2" = "view_tag_2"
+"modifier+3" = "view_tag_3"
+"modifier+4" = "view_tag_4"
+"modifier+5" = "view_tag_5"
+"modifier+6" = "view_tag_6"
+"modifier+7" = "view_tag_7"
+"modifier+8" = "view_tag_8"
+"modifier+9" = "view_tag_9"
+
+# Move windows to workspaces
+"modifier+Shift+1" = "move_to_tag_1"
+"modifier+Shift+2" = "move_to_tag_2"
+"modifier+Shift+3" = "move_to_tag_3"
+"modifier+Shift+4" = "move_to_tag_4"
+"modifier+Shift+5" = "move_to_tag_5"
+"modifier+Shift+6" = "move_to_tag_6"
+"modifier+Shift+7" = "move_to_tag_7"
+"modifier+Shift+8" = "move_to_tag_8"
+"modifier+Shift+9" = "move_to_tag_9"
+
+# Mode switching
+"modifier+c" = "enter_command_mode"
+"modifier+w" = "enter_window_mode"
+"modifier+t" = "enter_tag_mode"
+
+# Application shortcuts (customize these with your own applications)
+"modifier+Return" = "exec:alacritty"
+"modifier+f" = "exec:nautilus"
+"modifier+w" = "exec:firefox"
+
+[autostart]
+# Programs to start when DINA launches
+# Uncomment lines below to enable additional autostart programs
+# compositor = "picom --daemon"
+# keyboard = "setxkbmap -option ctrl:nocaps"
+
+[accessibility]
+# Sound/speech preferences
+enable_sounds = true
+sound_directory = "~/.local/share/dina/sounds/"
+enable_screen_reader = true
+announce_window_changes = true
+announce_workspace_changes = true
+
+[rules]
+# Window placement rules
+# Format: "class:instance:title" = { tags = "tag_list", floating = true/false, monitor = monitor_number }
+"Firefox:*:*" = { tags = "2", floating = false, monitor = 0 }
+"Terminal:*:*" = { tags = "1", floating = false, monitor = 0 }

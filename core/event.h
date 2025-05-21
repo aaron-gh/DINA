@@ -10,6 +10,7 @@
 
 #include <X11/Xlib.h>
 #include "dina.h"
+#include "keys.h"
 
 /* X protocol request codes */
 #define X_SetInputFocus    42

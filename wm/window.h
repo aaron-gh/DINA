@@ -209,4 +209,34 @@ void configure(Client *c);
  */
 void restack(Monitor *m);
 
+/**
+ * @brief Scan for existing windows and manage them
+ * 
+ * Called during startup to find and manage windows that
+ * exist before the window manager starts.
+ */
+void scan(void);
+
+/**
+ * @brief Get window state (Normal, Iconic)
+ * 
+ * @param w Window to check
+ * @return long Window state or -1 on error
+ */
+long getstate(Window w);
+
+/**
+ * @brief Attach client to stack
+ * 
+ * @param c Client to attach
+ */
+void attachstack(Client *c);
+
+/**
+ * @brief Detach client from stack
+ * 
+ * @param c Client to detach
+ */
+void detachstack(Client *c);
+
 #endif /* _WINDOW_H */

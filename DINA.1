@@ -8,10 +8,15 @@ DINA \- DINA Is Not Aesthetics window manager
 DINA is an accessibility-first window manager for X, derived from dwm (dynamic window manager).
 It's designed specifically for blind users and screen reader workflows, focusing on speech-based, keyboard-only navigation.
 .P
-DINA uses a simplified approach that always displays windows in monocle layout (fullscreen),
+DINA uses a completely headless approach that always displays windows in monocle layout (fullscreen),
 making it ideal for screen reader users who prefer a single window at a time.
-There is no status bar and no floating window functionality, removing visual overhead
-to focus on an accessible, speech-based experience.
+There are no visual UI elements like status bars, and no floating window functionality.
+All visual elements have been removed to focus 100% on the accessible, speech-based experience.
+.P
+DINA features a fully modular code architecture with an integrated keybinding system
+that supports multi-layered key combinations and runtime configuration. It does not
+rely on external tools like sxhkd for keyboard shortcuts, and it automates Orca
+screen reader startup.
 .P
 Windows are grouped by tags. Each window can be tagged with one or multiple
 tags. Selecting certain tags displays all windows with these tags.
@@ -23,7 +28,25 @@ operations like window focus changes, tag switching, and screen blackout togglin
 .B \-v
 prints version information to stderr, then exits.
 .SH USAGE
-.SS Keyboard commands
+.SS Multi-layered Keybinding System
+DINA features a multi-layered keybinding system with different modes for different contexts. 
+This creates a more efficient keyboard workflow and reduces conflicts between shortcuts.
+
+.SS Keybinding Modes
+.TP
+.B Normal Mode (default)
+Basic window management and navigation.
+.TP
+.B Command Mode
+Advanced commands and settings, activated with \fBSuper\-c\fR.
+.TP
+.B Window Mode
+Window manipulation commands, activated with \fBSuper\-w\fR.
+.TP
+.B Tag Mode
+Workspace/tag management, activated with \fBSuper\-t\fR.
+
+.SS Normal Mode Commands
 .TP
 .B Super\-j
 Focus previous window.
@@ -51,9 +74,68 @@ Apply nth tag to focused window.
 .TP
 .B Super\-Shift\-q
 Quit DINA.
+.TP
+.B Super\-c
+Enter command mode.
+.TP
+.B Super\-w
+Enter window mode.
+.TP
+.B Super\-t
+Enter tag mode.
+
+.SS Command Mode Commands
+.TP
+.B Super\-q
+Example command action.
+.TP
+.B Super\-w
+Example command action.
+.TP
+.B Super\-e
+Example command action.
+.TP
+.B Escape
+Return to normal mode.
+
+.SS Window Mode Commands
+.TP
+.B Super\-h
+Move window left.
+.TP
+.B Super\-j
+Move window down.
+.TP
+.B Super\-k
+Move window up.
+.TP
+.B Super\-l
+Move window right.
+.TP
+.B Escape
+Return to normal mode.
+
+.SS Tag Mode Commands
+.TP
+.B Super\-[1..9]
+Switch to workspace.
+.TP
+.B Escape
+Return to normal mode.
 .SH CUSTOMIZATION
-DINA is customized by creating a custom config.h and (re)compiling the source
-code. This keeps it fast, secure and simple.
+DINA can be customized in two ways:
+
+.TP
+.B Runtime Configuration
+DINA uses a human-readable configuration file located at ~/.config/dina/config.
+This file allows you to customize keybindings, autostart applications, workspace
+settings, and accessibility options without recompiling. See dina-config(5) for details.
+
+.TP
+.B Compilation Configuration
+For advanced users, DINA can still be customized by creating a custom config.h and
+(re)compiling the source code. This is less recommended for most users but maintains
+compatibility with the traditional suckless approach.
 .SH ACCESSIBILITY FEATURES
 .TP
 .B YAD-based application launcher
@@ -74,12 +156,32 @@ Audio and notification alerts for low battery status.
 .B Workspace memory
 Automatically places applications on their assigned workspaces with audio notification.
 .SH CREDITS
-DINA is based on dwm, the dynamic window manager by suckless.org.
+DINA is an accessibility-focused window manager.
 Modified to prioritize accessibility for blind users.
+.SH UTILITIES
+DINA provides several utilities to manage your configuration:
+
+.TP
+.B dina-config-check
+Validate your DINA configuration file, checking for errors or missing sections.
+
+.TP
+.B dina-config-migrate
+Migrate from the traditional config.h approach to the new human-readable configuration file.
+
+.SH FILES
+.TP
+.B ~/.config/dina/config
+The main configuration file for DINA. See dina-config(5) for details.
+
+.TP
+.B ~/.config/dina/workspace
+The workspace memory configuration file. It's a simple text file that remembers which applications belong on which workspaces.
+
 .SH SEE ALSO
 .BR dina-workspace (5),
-.BR dwm (1),
-.BR sxhkd (1),
+.BR dina-config (5),
+
 .BR orca (1),
 .BR yad (1),
 .BR sox (1)

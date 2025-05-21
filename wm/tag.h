@@ -28,23 +28,7 @@ void view(const Arg *arg);
  */
 void tag(const Arg *arg);
 
-/**
- * @brief Toggle a tag in view
- * 
- * Add or remove a tag from the current view
- * 
- * @param arg Command argument (.ui = tag mask)
- */
-void toggleview(const Arg *arg);
-
-/**
- * @brief Toggle a tag on a window
- * 
- * Add or remove a tag from the selected window
- * 
- * @param arg Command argument (.ui = tag mask)
- */
-void toggletag(const Arg *arg);
+/* Removed toggleview and toggletag - not used in our simplified UI */
 
 /**
  * @brief Move a window to a different monitor

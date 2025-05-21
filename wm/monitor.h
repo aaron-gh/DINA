@@ -84,13 +84,22 @@ void focusmon(const Arg *arg);
  */
 void monocle(Monitor *m);
 
+/* Removed tile layout - only using monocle */
+
 /**
- * @brief Apply the tiling layout to a monitor
+ * @brief Get monitor in given direction
  * 
- * Arrange windows in tiled mode
- * 
- * @param m Monitor to apply layout to
+ * @param dir Direction (-1 for previous, +1 for next)
+ * @return Monitor in the specified direction
  */
-void tile(Monitor *m);
+Monitor *dirtomon(int dir);
+
+/**
+ * @brief Send client to monitor
+ * 
+ * @param c Client to send
+ * @param m Target monitor
+ */
+void sendmon(Client *c, Monitor *m);
 
 #endif /* _MONITOR_H */

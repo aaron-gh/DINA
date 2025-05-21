@@ -9,6 +9,7 @@
 #include <X11/Xlib.h>
 
 #include "../core/dina.h"
+#include "../core/config.h"
 #include "tag.h"
 #include "window.h"
 #include "monitor.h"
@@ -17,6 +18,14 @@
 
 /* External variables from dina.c */
 extern Monitor *selmon;
+extern const char *tags[];
+extern void spawn(const Arg *arg);
+
+/* Helper macro to spawn shell commands */
+#define SHCMD(cmd) { .v = (const char*[]){ "/bin/sh", "-c", cmd, NULL } }
+
+/* Tag mask - all valid tags */
+#define TAGMASK ((1 << 9) - 1)
 
 /**
  * @brief View a tag
@@ -28,7 +37,31 @@ extern Monitor *selmon;
 void
 view(const Arg *arg)
 {
-    /* Stub implementation */
+    if ((arg->ui & TAGMASK) == selmon->tagset[selmon->seltags])
+        return;
+    
+    selmon->seltags ^= 1; /* toggle sel tagset */
+    
+    if (arg->ui & TAGMASK) {
+        selmon->tagset[selmon->seltags] = arg->ui & TAGMASK;
+        
+        // Find the tag number (1-based) for notification
+        int i, tag_num = 0;
+        for (i = 0; i < NUMTAGS; i++) {
+            if (arg->ui & (1 << i)) {
+                tag_num = i + 1;
+                break;
+            }
+        }
+        
+        // Notify about tag change
+        if (tag_num > 0) {
+            notify_tag(tag_num);
+        }
+    }
+    
+    focus(NULL);
+    arrange(selmon);
 }
 
 /**
@@ -41,34 +74,40 @@ view(const Arg *arg)
 void
 tag(const Arg *arg)
 {
-    /* Stub implementation */
+    if (selmon->sel && arg->ui & TAGMASK) {
+        // Find the previous tag (1-based)
+        int old_tag = 0;
+        int i;
+        for (i = 0; i < NUMTAGS; i++) {
+            if (selmon->sel->tags & (1 << i)) {
+                old_tag = i + 1;
+                break;
+            }
+        }
+        
+        // Set new tag
+        selmon->sel->tags = arg->ui & TAGMASK;
+        
+        // Find the new tag (1-based)
+        int new_tag = 0;
+        for (i = 0; i < NUMTAGS; i++) {
+            if (selmon->sel->tags & (1 << i)) {
+                new_tag = i + 1;
+                break;
+            }
+        }
+        
+        // Notify about tag change if both old and new tags are valid
+        if (old_tag > 0 && new_tag > 0 && old_tag != new_tag) {
+            notify_window_move(old_tag, new_tag);
+        }
+        
+        focus(NULL);
+        arrange(selmon);
+    }
 }
 
-/**
- * @brief Toggle a tag in view
- * 
- * Add or remove a tag from the current view
- * 
- * @param arg Command argument (.ui = tag mask)
- */
-void
-toggleview(const Arg *arg)
-{
-    /* Stub implementation */
-}
-
-/**
- * @brief Toggle a tag on a window
- * 
- * Add or remove a tag from the selected window
- * 
- * @param arg Command argument (.ui = tag mask)
- */
-void
-toggletag(const Arg *arg)
-{
-    /* Stub implementation */
-}
+/* Removed toggleview and toggletag functions - not used in our simplified UI */
 
 /**
  * @brief Move a window to a different monitor
@@ -78,7 +117,9 @@ toggletag(const Arg *arg)
 void
 tagmon(const Arg *arg)
 {
-    /* Stub implementation */
+    if (!selmon->sel || !mons->next)
+        return;
+    sendmon(selmon->sel, dirtomon(arg->i));
 }
 
 /**
@@ -88,25 +129,7 @@ tagmon(const Arg *arg)
  * 
  * @param tag Tag number (1-based)
  */
-void
-notify_tag(int tag)
-{
-    /* Stub implementation */
-}
-
-/**
- * @brief Notify when moving a window between tags
- * 
- * Provide audio feedback when moving a window between tags
- * 
- * @param from_tag Source tag (1-based)
- * @param to_tag Destination tag (1-based)
- */
-void
-notify_window_move(int from_tag, int to_tag)
-{
-    /* Stub implementation */
-}
+/* These notification functions are in a11y/notify.c */
 
 /**
  * @brief Get next tiled client
@@ -117,6 +140,6 @@ notify_window_move(int from_tag, int to_tag)
 Client *
 nexttiled(Client *c)
 {
-    /* Stub implementation */
-    return NULL;
+    for (; c && (c->isfloating || !ISVISIBLE(c)); c = c->next);
+    return c;
 }

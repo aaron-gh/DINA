@@ -32,4 +32,11 @@ void drawbars(void);
  */
 void updatestatus(void);
 
+/**
+ * @brief Update client list
+ * 
+ * Update list of managed clients
+ */
+void updateclientlist(void);
+
 #endif /* _UI_H */

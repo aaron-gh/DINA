@@ -1,10 +1,10 @@
 include config.mk
 
 # Source directories
-DIRS = core wm ui a11y util
+DIRS = core wm ui a11y util config
 
 # Core source files
-CORE_SRC = core/dina.c core/config.c core/event.c
+CORE_SRC = core/dina.c core/config.c core/event.c core/keys.c
 # Window management source files
 WM_SRC = wm/window.c wm/monitor.c wm/tag.c wm/rules.c
 # UI source files
@@ -13,9 +13,11 @@ UI_SRC = ui/drw.c ui/ui.c
 A11Y_SRC = a11y/notify.c a11y/workspace_memory.c
 # Utility source files
 UTIL_SRC = util/util.c
+# Runtime config source files
+CONFIG_SRC = config/config.c config/keybinds.c config/autostart.c config/accessibility.c
 
 # All source files
-SRC = $(CORE_SRC) $(WM_SRC) $(UI_SRC) $(A11Y_SRC) $(UTIL_SRC)
+SRC = $(CORE_SRC) $(WM_SRC) $(UI_SRC) $(A11Y_SRC) $(UTIL_SRC) $(CONFIG_SRC)
 OBJ = ${SRC:.c=.o}
 
 # Header directories for include paths
@@ -48,12 +50,21 @@ install: all
 	@mkdir -p ${DESTDIR}${PREFIX}/bin
 	@cp -f DINA ${DESTDIR}${PREFIX}/bin
 	@chmod 755 ${DESTDIR}${PREFIX}/bin/DINA
+	@cp -f scripts/dina-config-check ${DESTDIR}${PREFIX}/bin
+	@chmod 755 ${DESTDIR}${PREFIX}/bin/dina-config-check
+	@cp -f scripts/dina-config-migrate ${DESTDIR}${PREFIX}/bin
+	@chmod 755 ${DESTDIR}${PREFIX}/bin/dina-config-migrate
 	@mkdir -p ${DESTDIR}${MANPREFIX}/man1
 	@cp -f DINA.1 ${DESTDIR}${MANPREFIX}/man1/DINA.1
 	@chmod 644 ${DESTDIR}${MANPREFIX}/man1/DINA.1
+	@mkdir -p ${DESTDIR}${PREFIX}/share/doc/DINA
+	@cp -f README.md ${DESTDIR}${PREFIX}/share/doc/DINA/README.md
+	@chmod 644 ${DESTDIR}${PREFIX}/share/doc/DINA/README.md
 	@mkdir -p ${DESTDIR}${MANPREFIX}/man5
 	@cp -f dina-workspace.5 ${DESTDIR}${MANPREFIX}/man5/dina-workspace.5
 	@chmod 644 ${DESTDIR}${MANPREFIX}/man5/dina-workspace.5
+	@cp -f dina-config.5 ${DESTDIR}${MANPREFIX}/man5/dina-config.5
+	@chmod 644 ${DESTDIR}${MANPREFIX}/man5/dina-config.5
 	@echo "DINA installed to ${DESTDIR}${PREFIX}/bin/DINA"
 
 userinstall:
@@ -75,7 +86,7 @@ uninstall:
 	rm -f ${HOME}/.local/bin/toggle-blackout ${HOME}/.local/bin/battery-watch \
 	      ${HOME}/.local/bin/app-launcher ${HOME}/.local/bin/session-menu \
 	      ${HOME}/.local/bin/start-orca ${HOME}/.local/bin/interactive-userinstall
-	rm -f ${HOME}/.config/sxhkd/sxhkdrc
+	rm -f ${HOME}/.config/dina/config
 
 # Pattern rule for object files
 %.o: %.c

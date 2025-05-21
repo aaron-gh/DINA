@@ -1,18 +1,9 @@
 #!/usr/bin/env bash
 #
-# ensure-orca-autostart - Helper script to ensure Orca screen reader starts automatically
+# ensure-orca-autostart - Helper script for DINA window manager startup
 # 
-# This script looks for the start-orca script in various locations and sets it up
-# to autostart with the desktop environment or window manager
-
-# Exit on error
-set -e
-
-# Script constants
-SCRIPT_NAME="start-orca"
-AUTOSTART_DIR="$HOME/.config/autostart"
-AUTOSTART_FILE="$AUTOSTART_DIR/orca-screen-reader.desktop"
-LOCAL_BIN_DIR="$HOME/.local/bin"
+# This script is now a legacy wrapper that informs users that Orca
+# is started directly by DINA and no additional configuration is needed
 
 # ANSI color codes for prettier output
 RED='\033[0;31m'
@@ -41,127 +32,78 @@ error() {
     echo -e "${RED}[ERROR]${NC} $1" >&2
 }
 
-# Ensure local bin directory exists
-ensure_local_bin() {
-    if [ ! -d "$LOCAL_BIN_DIR" ]; then
-        info "Creating local bin directory: $LOCAL_BIN_DIR"
-        mkdir -p "$LOCAL_BIN_DIR"
+# Check for existing Orca autostart entry and remove it
+remove_orca_autostart() {
+    local orca_autostart="$HOME/.config/autostart/orca-screen-reader.desktop"
+    if [ -f "$orca_autostart" ]; then
+        info "Found legacy Orca autostart entry: $orca_autostart"
+        info "Removing it since DINA now starts Orca directly"
+        rm "$orca_autostart"
+        success "Removed legacy Orca autostart entry"
     fi
 }
 
-# Ensure autostart directory exists
-ensure_autostart_dir() {
-    if [ ! -d "$AUTOSTART_DIR" ]; then
-        info "Creating autostart directory: $AUTOSTART_DIR"
-        mkdir -p "$AUTOSTART_DIR"
+# Create or update the DINA configuration file
+ensure_dina_config() {
+    local config_dir="$HOME/.config/dina"
+    local config_file="$config_dir/config"
+    
+    # Create the DINA config directory if it doesn't exist
+    if [ ! -d "$config_dir" ]; then
+        info "Creating DINA configuration directory: $config_dir"
+        mkdir -p "$config_dir"
     fi
-}
-
-# Try to find the start-orca script in various locations
-find_orca_script() {
-    local search_paths=(
-        "$LOCAL_BIN_DIR/$SCRIPT_NAME"                # User's local bin
-        "/usr/bin/$SCRIPT_NAME"                      # System bin
-        "/usr/local/bin/$SCRIPT_NAME"                # System local bin
-        "$(dirname "$(readlink -f "$0")")/$SCRIPT_NAME"  # Same directory as this script
-        "$HOME/Documents/GitHub/DINA/scripts/$SCRIPT_NAME" # Repo location
-    )
-
-    for path in "${search_paths[@]}"; do
-        if [ -x "$path" ]; then
-            echo "$path"
-            return 0
-        fi
-    done
-
-    # Not found
-    return 1
-}
-
-# Create or update the autostart desktop entry
-create_autostart_entry() {
-    local script_path="$1"
     
-    # Ensure autostart directory exists
-    ensure_autostart_dir
+    # Check if config file exists
+    if [ ! -f "$config_file" ]; then
+        info "DINA configuration file doesn't exist yet"
+        info "It will be created the first time you run DINA"
+        info "or by using the interactive-userinstall script"
+        return
+    fi
     
-    info "Creating autostart entry: $AUTOSTART_FILE"
-    cat > "$AUTOSTART_FILE" << EOF
-[Desktop Entry]
-Type=Application
-Name=Orca Screen Reader
-Comment=Start Orca screen reader for DINA accessibility
-Exec=$script_path
-Terminal=false
-X-GNOME-Autostart-enabled=true
-X-GNOME-Autostart-Phase=WindowManager
-NoDisplay=false
+    # Check if accessibility section exists in the config file
+    if ! grep -q "\[accessibility\]" "$config_file"; then
+        info "Adding accessibility section to DINA config file"
+        cat >> "$config_file" << EOF
+
+[accessibility]
+# Sound/speech preferences
+enable_sounds = true
+enable_screen_reader = true
+announce_window_changes = true
+announce_workspace_changes = true
 EOF
-    
-    # Make the desktop file executable
-    chmod 755 "$AUTOSTART_FILE"
-    success "Created autostart entry for $script_path"
-}
-
-# Copy the start-orca script if needed
-copy_orca_script() {
-    local source_path="$1"
-    local target_path="$LOCAL_BIN_DIR/$SCRIPT_NAME"
-    
-    # Ensure target directory exists
-    ensure_local_bin
-    
-    # Don't copy if source and target are the same
-    if [ "$source_path" == "$target_path" ]; then
-        info "Script already exists in $LOCAL_BIN_DIR"
-        return 0
+        success "Added accessibility configuration to DINA config file"
+    else
+        # Make sure screen reader is enabled
+        if grep -q "enable_screen_reader = false" "$config_file"; then
+            info "Enabling screen reader in DINA configuration"
+            sed -i 's/enable_screen_reader = false/enable_screen_reader = true/' "$config_file"
+            success "Enabled screen reader in DINA configuration"
+        else
+            success "Screen reader is already enabled in DINA configuration"
+        fi
     fi
-    
-    info "Copying $SCRIPT_NAME to $LOCAL_BIN_DIR"
-    cp "$source_path" "$target_path"
-    chmod 755 "$target_path"
-    success "Copied $SCRIPT_NAME to $LOCAL_BIN_DIR"
-    
-    echo "$target_path"
 }
 
 # Main function
 main() {
-    info "Looking for $SCRIPT_NAME script..."
+    info "DINA Window Manager Information"
+    info "==============================="
+    warning "Note: This script is now legacy and no longer required"
+    info "DINA window manager now starts Orca screen reader directly"
+    info "No additional configuration is needed to enable the screen reader"
     
-    # Try to find the script
-    local script_path
-    if ! script_path=$(find_orca_script); then
-        error "Could not find $SCRIPT_NAME script"
-        info "Checking if it's in the same directory as this script..."
-        
-        # If this script is being run from the repo, the start-orca script should be next to it
-        local this_dir=$(dirname "$(readlink -f "$0")")
-        local possible_source="$this_dir/$SCRIPT_NAME"
-        
-        if [ -f "$possible_source" ]; then
-            info "Found $SCRIPT_NAME in $this_dir"
-            script_path=$(copy_orca_script "$possible_source")
-        else
-            error "Cannot find $SCRIPT_NAME anywhere. Aborting."
-            exit 1
-        fi
-    fi
+    # Clean up any existing autostart entries that are no longer needed
+    remove_orca_autostart
     
-    # We found the script
-    success "Found $SCRIPT_NAME at: $script_path"
+    # Ensure DINA config has screen reader enabled
+    ensure_dina_config
     
-    # Create autostart entry
-    create_autostart_entry "$script_path"
-    
-    # Start the script if requested
-    if [ "$1" == "--start-now" ]; then
-        info "Starting $SCRIPT_NAME now..."
-        "$script_path" &
-    fi
-    
-    success "Orca screen reader is now set to autostart with your session"
-    info "If you want to start it now, run: $script_path"
+    success "Orca screen reader is configured to start automatically with DINA"
+    info "To customize accessibility options, edit ~/.config/dina/config"
+    info "or run the interactive-userinstall script"
 }
 
 # Run the main function

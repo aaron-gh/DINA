@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 #
-# start-orca - Non-blocking Orca screen reader launcher for DINA
+# start-orca - Non-blocking Orca screen reader launcher (LEGACY)
 #
-# This script ensures Orca starts with DINA without blocking
-# the window manager startup process
+# This script is now LEGACY as DINA window manager starts Orca directly.
+# It is kept for backward compatibility only.
+#
+# Note: You should not need to run this script manually anymore,
+# as DINA will handle starting Orca automatically.
 
 import os
 import sys
@@ -199,8 +202,25 @@ def check_environment():
     log_with_timestamp("--- End Environment Information ---", "DEBUG")
 
 def main():
-    log_with_timestamp("=== start-orca script started ===")
+    log_with_timestamp("=== LEGACY start-orca script started ===")
+    log_with_timestamp("WARNING: This script is now LEGACY as DINA starts Orca directly.", "WARNING")
+    log_with_timestamp("It is kept for backward compatibility only.", "WARNING")
     log_with_timestamp(f"Arguments: {sys.argv}")
+    
+    print("\033[93m" + "=" * 80 + "\033[0m")
+    print("\033[93mWARNING: This script is now LEGACY and no longer required\033[0m")
+    print("\033[93mDINA window manager now starts Orca screen reader directly\033[0m")
+    print("\033[93mYou should not need to run this script manually anymore\033[0m")
+    print("\033[93m" + "=" * 80 + "\033[0m")
+    
+    # Check if Orca is already running
+    if is_orca_running():
+        log_with_timestamp("Orca is already running, no action needed")
+        print("\033[92mOrca screen reader is already running\033[0m")
+        sys.exit(0)
+    
+    # Continue with legacy behavior for backward compatibility
+    log_with_timestamp("Continuing with legacy behavior for backward compatibility")
     
     # Check if launched with the background argument
     if len(sys.argv) == 1:
@@ -214,28 +234,22 @@ def main():
     # Check environment variables and system state
     check_environment()
     
-    # Wait for DINA to initialize
-    log_with_timestamp("Waiting for DINA to initialize (2 seconds)")
-    time.sleep(2)
+    # Wait a moment before starting Orca
+    log_with_timestamp("Preparing to start Orca...")
+    time.sleep(1)
     
     # Always restart Orca with --replace flag to ensure proper recovery from crashes
     try:
-        # Start Orca with output captured for logging
-        if is_orca_running():
-            log_with_timestamp("Orca is already running, restarting it with --replace flag")
-        else:
-            log_with_timestamp("Orca not running, starting it with --replace flag")
-        
-        # Play a sound before starting Orca (in another thread)
-        # This ensures users know sound is working even if Orca fails
+        # Play a sound before starting Orca
         announce_orca_starting()
             
         # Capture stdout and stderr for logging
         orca_stdout = open(os.path.join(LOG_DIR, "orca-stdout.log"), 'w')
         orca_stderr = open(os.path.join(LOG_DIR, "orca-stderr.log"), 'w')
         
+        log_with_timestamp("Starting Orca with --replace flag")
         orca_process = subprocess.Popen(
-            ["orca", "--replace", "--no-setup", "--debug"],
+            ["orca", "--replace", "--no-setup"],
             stdout=orca_stdout,
             stderr=orca_stderr,
             start_new_session=True
@@ -244,22 +258,11 @@ def main():
         log_with_timestamp(f"Orca process started with PID: {orca_process.pid}")
         
         # Wait a moment to make sure it started
-        log_with_timestamp("Waiting 3 seconds for Orca to initialize")
-        time.sleep(3)
+        time.sleep(2)
         
         # Verify Orca is running
         if orca_process.poll() is not None:
             log_with_timestamp(f"Warning: Orca may have failed to start (exit code: {orca_process.returncode})", "WARNING")
-            
-            # Check orca-stderr.log for errors
-            try:
-                orca_stderr.flush()
-                with open(os.path.join(LOG_DIR, "orca-stderr.log"), 'r') as f:
-                    stderr_content = f.read()
-                    if stderr_content:
-                        log_with_timestamp(f"Orca error output: {stderr_content}", "ERROR")
-            except Exception as e:
-                log_with_timestamp(f"Could not read Orca error log: {e}", "ERROR")
         else:
             log_with_timestamp("Orca appears to have started successfully")
             
@@ -279,7 +282,8 @@ def main():
         if 'orca_stderr' in locals():
             orca_stderr.close()
     
-    log_with_timestamp("=== start-orca script completed ===")
+    log_with_timestamp("=== LEGACY start-orca script completed ===")
+    log_with_timestamp("Note: In the future, you should rely on DINA to start Orca automatically", "INFO")
     sys.exit(0)
 
 if __name__ == "__main__":

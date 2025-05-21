@@ -19,9 +19,9 @@ override_dh_auto_install:
 	cp -r scripts/* debian/dina/usr/share/DINA/scripts/
 	chmod +x debian/dina/usr/share/DINA/scripts/*
 	
-	# Install sxhkd config to skeleton directory
-	mkdir -p debian/dina/etc/skel/.config/sxhkd
-	cp sxhkd/sxhkdrc debian/dina/etc/skel/.config/sxhkd/
+	# Install DINA config template to skeleton directory
+	mkdir -p debian/dina/etc/skel/.config/dina
+	cp config/config.template debian/dina/etc/skel/.config/dina/
 	
 	# Install first-run script
 	mkdir -p debian/dina/usr/share/DINA

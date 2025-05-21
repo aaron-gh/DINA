@@ -34,8 +34,8 @@ The Debian package installs:
 - DINA binary to `/usr/bin/DINA`
 - Man page to `/usr/share/man/man1/DINA.1`
 - Scripts to `/usr/share/DINA/scripts/`
-- sxhkd configuration to `/etc/skel/.config/sxhkd/`
 - First-run script for the interactive setup
+- Configuration templates for DINA's built-in keybinding system
 
 ## First-Run Interactive Setup
 

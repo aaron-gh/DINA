@@ -46,7 +46,7 @@ mkdir -p "$PACKAGE_DIR/usr/bin"
 mkdir -p "$PACKAGE_DIR/usr/share/man/man1"
 mkdir -p "$PACKAGE_DIR/usr/share/DINA/scripts"
 mkdir -p "$PACKAGE_DIR/usr/share/xsessions"
-mkdir -p "$PACKAGE_DIR/etc/skel/.config/sxhkd"
+mkdir -p "$PACKAGE_DIR/etc/skel/.config/dina"
 mkdir -p "$PACKAGE_DIR/etc/xdg/autostart"
 
 # Create control file
@@ -57,7 +57,7 @@ Version: $VERSION-1
 Section: x11
 Priority: optional
 Architecture: amd64
-Depends: libx11-6, libxinerama1, sxhkd, speech-dispatcher, sox, dialog, orca, yad, acpi
+Depends: libx11-6, libxinerama1, speech-dispatcher, sox, dialog, orca, yad, acpi
 Recommends: xterm | x-terminal-emulator
 Maintainer: Aaron Hewitt <aaron.graham.hewitt@gmail.com>
 Description: Accessibility-first window manager for blind users
@@ -289,8 +289,8 @@ cp "packaging/debian/dina.desktop" "$PACKAGE_DIR/usr/share/xsessions/"
 cp "packaging/debian/dina-first-run.desktop" "$PACKAGE_DIR/etc/xdg/autostart/"
 cp "packaging/debian/dina-first-run.sh" "$PACKAGE_DIR/usr/share/DINA/"
 
-# Copy sxhkdrc
-cp "sxhkd/sxhkdrc" "$PACKAGE_DIR/etc/skel/.config/sxhkd/"
+# Copy DINA config template
+cp "config/config.template" "$PACKAGE_DIR/etc/skel/.config/dina/"
 
 # Set permissions
 echo "Setting file permissions..."
@@ -299,7 +299,7 @@ chmod 644 "$PACKAGE_DIR/usr/share/man/man1/DINA.1"
 chmod 755 "$PACKAGE_DIR/usr/share/DINA/dina-first-run.sh"
 chmod 644 "$PACKAGE_DIR/usr/share/xsessions/dina.desktop"
 chmod 644 "$PACKAGE_DIR/etc/xdg/autostart/dina-first-run.desktop"
-chmod 644 "$PACKAGE_DIR/etc/skel/.config/sxhkd/sxhkdrc"
+chmod 644 "$PACKAGE_DIR/etc/skel/.config/dina/config.template"
 
 # Create md5sums file
 echo "Generating checksums..."

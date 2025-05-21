@@ -39,6 +39,16 @@ if [ ! -f "$HOME/.config/DINA/setup-complete" ]; then
     mkdir -p "$HOME/.local/bin"
     cp -f /usr/share/DINA/scripts/* "$HOME/.local/bin/"
     chmod +x "$HOME/.local/bin/"*
+    
+    # Set up the DINA configuration
+    mkdir -p "$HOME/.config/dina"
+    if [ -f "/etc/skel/.config/dina/config.template" ]; then
+        # Copy the template if it doesn't exist yet
+        if [ ! -f "$HOME/.config/dina/config" ]; then
+            cp -f "/etc/skel/.config/dina/config.template" "$HOME/.config/dina/config"
+            chmod 644 "$HOME/.config/dina/config"
+        fi
+    fi
 
     # Create a wrapper script for the interactive setup
     SETUP_WRAPPER="$HOME/.config/DINA/setup-wrapper.sh"

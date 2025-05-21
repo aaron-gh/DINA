@@ -21,8 +21,51 @@
 #include "../ui/ui.h"
 #include "../util/util.h"
 
-/* Running state */
-int running = 1;
+/* Running state is defined in dina.c */
+extern int running;
+extern Display *dpy;
+extern Window root;
+extern int sw, sh, bh;
+extern Monitor *selmon, *mons;
+extern Drw *drw;
+extern char stext[256];
+extern Atom wmatom[WMLast], netatom[NetLast];
+extern unsigned int numlockmask;
+
+/* From config.c */
+extern const char *tags[];
+extern const Key keys[];
+extern const Button buttons[];
+
+/* From window.c */
+extern void focus(Client *c);
+extern void unfocus(Client *c, int setfocus);
+extern void setfocus(Client *c);
+extern void seturgent(Client *c, int urg);
+extern void updatewmhints(Client *c);
+extern void updatetitle(Client *c);
+extern void updatewindowtype(Client *c);
+extern void setclientstate(Client *c, long state);
+extern void unmanage(Client *c, int destroyed);
+extern Client *wintoclient(Window w);
+extern void manage(Window w, XWindowAttributes *wa);
+extern void setfullscreen(Client *c, int fullscreen);
+extern void resizeclient(Client *c, int x, int y, int w, int h);
+extern void restack(Monitor *m);
+extern void configure(Client *c);
+
+/* From monitor.c */
+extern int updategeom(void);
+extern Monitor *wintomon(Window w);
+extern Monitor *recttomon(int x, int y, int w, int h);
+extern void arrange(Monitor *m);
+
+/* From ui.c */
+extern void drawbar(Monitor *m);
+extern void drawbars(void);
+extern void updatebars(void);
+extern void updatestatus(void);
+extern void updateclientlist(void);
 
 /* Error handler function pointer */
 static int (*xerrorxlib)(Display *, XErrorEvent *);
@@ -53,7 +96,8 @@ static void (*handler[LASTEvent])(XEvent *) = {
 void
 event_init(void)
 {
-    grabkeys();
+    /* Keys are now handled by the advanced keybinding system */
+    /* grabkeys() is called from keys_init() */
 }
 
 /**
@@ -72,16 +116,7 @@ event_cleanup(void)
  * 
  * Process X events until termination
  */
-void
-run(void)
-{
-    XEvent ev;
-    /* main event loop */
-    XSync(dpy, False);
-    while (running && !XNextEvent(dpy, &ev))
-        if (handler[ev.type])
-            handler[ev.type](&ev); /* call handler */
-}
+/* This function was moved to dina.c */
 
 /**
  * @brief Handle X events
@@ -110,53 +145,11 @@ checkotherwm(void)
     /* This will trigger a BadAccess error if another WM is running */
     XSelectInput(dpy, DefaultRootWindow(dpy), SubstructureRedirectMask);
     XSync(dpy, False);
-    XSetErrorHandler(xerror);
+    XSetErrorHandler(xerrorxlib);
     XSync(dpy, False);
 }
 
-/**
- * @brief Grab keyboard keys
- * 
- * Set up key grabs for keyboard shortcuts
- */
-void
-grabkeys(void)
-{
-    updatenumlockmask();
-    {
-        unsigned int i, j;
-        unsigned int modifiers[] = { 0, LockMask, numlockmask, numlockmask|LockMask };
-        KeyCode code;
-
-        XUngrabKey(dpy, AnyKey, AnyModifier, root);
-        for (i = 0; i < LENGTH(keys); i++)
-            if ((code = XKeysymToKeycode(dpy, keys[i].keysym)))
-                for (j = 0; j < LENGTH(modifiers); j++)
-                    XGrabKey(dpy, code, keys[i].mod | modifiers[j], root,
-                        True, GrabModeAsync, GrabModeAsync);
-    }
-}
-
-/**
- * @brief Update numlock mask
- * 
- * Get the current numlock mask
- */
-void
-updatenumlockmask(void)
-{
-    unsigned int i, j;
-    XModifierKeymap *modmap;
-
-    numlockmask = 0;
-    modmap = XGetModifierMapping(dpy);
-    for (i = 0; i < 8; i++)
-        for (j = 0; j < modmap->max_keypermod; j++)
-            if (modmap->modifiermap[i * modmap->max_keypermod + j]
-                == XKeysymToKeycode(dpy, XK_Num_Lock))
-                numlockmask = (1 << i);
-    XFreeModifiermap(modmap);
-}
+/* Functions moved to config.c */
 
 /**
  * @brief Handle button press events
@@ -166,8 +159,7 @@ updatenumlockmask(void)
 void
 buttonpress(XEvent *e)
 {
-    unsigned int i, x, click;
-    Arg arg = {0};
+    unsigned int i, click;
     Client *c;
     Monitor *m;
     XButtonPressedEvent *ev = &e->xbutton;
@@ -179,30 +171,18 @@ buttonpress(XEvent *e)
         selmon = m;
         focus(NULL);
     }
-    if (ev->window == selmon->barwin) {
-        i = x = 0;
-        do
-            x += TEXTW(tags[i]);
-        while (ev->x >= x && ++i < LENGTH(tags));
-        if (i < LENGTH(tags)) {
-            click = ClkTagBar;
-            arg.ui = 1 << i;
-        } else if (ev->x < x + TEXTW(selmon->ltsymbol))
-            click = ClkLtSymbol;
-        else if (ev->x > selmon->ww - (int)TEXTW(stext))
-            click = ClkStatusText;
-        else
-            click = ClkWinTitle;
-    } else if ((c = wintoclient(ev->window))) {
+    /* Only handle client window clicks - simplified for headless mode */
+    if ((c = wintoclient(ev->window))) {
         focus(c);
         restack(selmon);
         XAllowEvents(dpy, ReplayPointer, CurrentTime);
         click = ClkClientWin;
     }
+    /* Find matching button and execute function */
     for (i = 0; i < LENGTH(buttons); i++)
         if (click == buttons[i].click && buttons[i].func && buttons[i].button == ev->button
         && CLEANMASK(buttons[i].mask) == CLEANMASK(ev->state))
-            buttons[i].func(click == ClkTagBar && buttons[i].arg.i == 0 ? &arg : &buttons[i].arg);
+            buttons[i].func(&buttons[i].arg);
 }
 
 /**
@@ -219,8 +199,8 @@ clientmessage(XEvent *e)
     if (!c)
         return;
     if (cme->message_type == netatom[NetWMState]) {
-        if (cme->data.l[1] == netatom[NetWMFullscreen]
-        || cme->data.l[2] == netatom[NetWMFullscreen])
+        if ((Atom)cme->data.l[1] == netatom[NetWMFullscreen]
+        || (Atom)cme->data.l[2] == netatom[NetWMFullscreen])
             setfullscreen(c, (cme->data.l[0] == 1 /* _NET_WM_STATE_ADD    */
                 || (cme->data.l[0] == 2 /* _NET_WM_STATE_TOGGLE */ && !c->isfullscreen)));
     } else if (cme->message_type == netatom[NetActiveWindow]) {
@@ -291,9 +271,6 @@ configurerequest(XEvent *e)
  * 
  * @param e X event
  */
-/* For the modular design - temporary stubs */
-void updateclientlist(void) {}
-
 void
 configurenotify(XEvent *e)
 {
@@ -308,15 +285,13 @@ configurenotify(XEvent *e)
         sw = ev->width;
         sh = ev->height;
         if (updategeom() || dirty) {
-            /* Bar height is defined in dina.c */
-            int bar_height = 0;  /* Temporary value until modularization is complete */
-            drw_resize(drw, sw, bar_height);
+            drw_resize(drw, sw, bh);
             updatebars();
             for (m = mons; m; m = m->next) {
                 for (c = m->clients; c; c = c->next)
                     if (c->isfullscreen)
                         resizeclient(c, m->mx, m->my, m->mw, m->mh);
-                XMoveResizeWindow(dpy, m->barwin, m->wx, m->by, m->ww, bar_height);
+                XMoveResizeWindow(dpy, m->barwin, m->wx, m->by, m->ww, bh);
             }
             focus(NULL);
             arrange(NULL);
@@ -400,17 +375,8 @@ focusin(XEvent *e)
 void
 keypress(XEvent *e)
 {
-    unsigned int i;
-    KeySym keysym;
-    XKeyEvent *ev;
-
-    ev = &e->xkey;
-    keysym = XKeycodeToKeysym(dpy, (KeyCode)ev->keycode, 0);
-    for (i = 0; i < LENGTH(keys); i++)
-        if (keysym == keys[i].keysym
-        && CLEANMASK(keys[i].mod) == CLEANMASK(ev->state)
-        && keys[i].func)
-            keys[i].func(&(keys[i].arg));
+    /* Use the advanced keybinding system */
+    handle_keypress(e);
 }
 
 /**
@@ -424,8 +390,11 @@ mappingnotify(XEvent *e)
     XMappingEvent *ev = &e->xmapping;
 
     XRefreshKeyboardMapping(ev);
-    if (ev->request == MappingKeyboard)
-        grabkeys();
+    if (ev->request == MappingKeyboard) {
+        /* Use the advanced keybinding system instead of grabkeys() */
+        extern void grab_all_keys(void);
+        grab_all_keys();
+    }
 }
 
 /**
@@ -535,30 +504,7 @@ unmapnotify(XEvent *e)
  * @param proto Atom representing the protocol
  * @return 1 if successful, 0 otherwise
  */
-int
-sendevent(Client *c, Atom proto)
-{
-    int n;
-    Atom *protocols;
-    int exists = 0;
-    XEvent ev;
-
-    if (XGetWMProtocols(dpy, c->win, &protocols, &n)) {
-        while (!exists && n--)
-            exists = protocols[n] == proto;
-        XFree(protocols);
-    }
-    if (exists) {
-        ev.type = ClientMessage;
-        ev.xclient.window = c->win;
-        ev.xclient.message_type = wmatom[WMProtocols];
-        ev.xclient.format = 32;
-        ev.xclient.data.l[0] = proto;
-        ev.xclient.data.l[1] = CurrentTime;
-        XSendEvent(dpy, c->win, False, NoEventMask, &ev);
-    }
-    return exists;
-}
+/* sendevent moved to window.c */
 
 /**
  * @brief X error handler

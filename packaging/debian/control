@@ -11,7 +11,6 @@ Vcs-Git: https://github.com/aaron-gh/DINA.git
 Package: dina
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, 
- sxhkd, 
  speech-dispatcher, 
  sox, 
  dialog, 

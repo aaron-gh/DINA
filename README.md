@@ -1,6 +1,6 @@
 # DINA — DINA Is Not Aesthetics
 
-**DINA** is a stripped-down, accessibility-first fork of [dwm](https://dwm.suckless.org/) tailored for blind users and screen reader workflows.
+**DINA** is a stripped-down, accessibility-first window manager tailored for blind users and screen reader workflows. Originally inspired by minimalist principles, DINA has evolved into its own independent project focused solely on accessibility.
 
 ---
 
@@ -15,17 +15,19 @@ DINA removes all visual overhead and focuses on **speech-based**, **keyboard-onl
 
 ## ✨ What DINA Does
 
-- ✅ Always uses **monocle layout** (fullscreen windows)
-- ❌ No status bar
-- ❌ No layout switching
+- ✅ Completely headless **monocle layout** (fullscreen windows) 
+- ❌ No status bar or UI elements whatsoever
+- ❌ No layout switching or tiling options
 - ❌ No floating window support
+- ❌ No visual elements - 100% optimized for screen readers
 - ✅ Audio + speech feedback via `sox` and `spd-say`
 - ✅ YAD-based application launcher, accessible with Orca
 - ✅ Screen blackout toggle script for full visual suppression
 - ✅ Low battery warning via `notify-send` + `spd-say`
-- ✅ Clean keyboard control via `sxhkd`
-- ✅ Orca screen reader autostart for immediate accessibility
+- ✅ Advanced multi-layered keybinding system built directly into DINA
+- ✅ Orca screen reader integration with automatic startup
 - ✅ Workspace memory that remembers which applications belong on which workspaces
+- ✅ Fully modular code architecture for easy maintenance
 
 ---
 
@@ -65,7 +67,7 @@ make userinstall
 
 This will run the interactive setup that:
 - Installs all utility scripts to your ~/.local/bin directory
-- Sets up sxhkd configuration for keyboard shortcuts
+- Sets up built-in keybinding configuration
 - Detects and configures your preferred applications
 
 This will:
@@ -96,14 +98,28 @@ See the [packaging documentation](packaging/README.md) for more details.
 |-----------------------|---------------------------|
 | `DINA` binary         | `/usr/local/bin/DINA`     |
 | Accessibility scripts | `~/.local/bin/`           |
-| `sxhkdrc` config      | `~/.config/sxhkd/sxhkdrc` |
 
 > 💡 The systemd service to restore screen blackout on resume was removed.  
 > Users can toggle blackout manually using the provided script.
 
 ---
 
-## 🗝️ Default Keybindings (via `sxhkd`)
+## 🗝️ Keybinding System
+
+DINA features a multi-layered keybinding system with different modes for different contexts. This creates a more efficient keyboard workflow and reduces conflicts between shortcuts.
+
+## Modes
+
+- **Normal Mode** (default): Basic window management and navigation
+- **Command Mode** (`Super + c`): Advanced commands and settings
+- **Window Mode** (`Super + w`): Window manipulation commands
+- **Tag Mode** (`Super + t`): Workspace/tag management
+
+Each mode has its own set of keybindings, and the system provides audio feedback when switching modes. Press `Escape` to return to normal mode from any other mode.
+
+## Default Keybindings
+
+### Normal Mode
 
 | Key                  | Action                     |
 |---------------------|----------------------------|
@@ -112,15 +128,92 @@ See the [packaging documentation](packaging/README.md) for more details.
 | `Super + k`         | Kill focused window        |
 | `Super + a`         | Launch accessible app menu |
 | `Super + b`         | Toggle screen blackout     |
-| `Super + f`         | Open file manager          |
-| `Super + w`         | Open web browser           |
 | `Super + Return`    | Open terminal              |
 | `Super + Backspace` | Power/session menu         |
 | `Super + [1–9]`     | Switch workspace/tag       |
 | `Super + Shift + [1-9]` | Move window to workspace |
 | `Super + Shift + q` | Quit DINA                  |
+| `Super + c`         | Enter command mode         |
+| `Super + w`         | Enter window mode          |
+| `Super + t`         | Enter tag mode             |
+
+### Command Mode
+| Key               | Action                     |
+|------------------|----------------------------|
+| `Super + q`      | Example command action     |
+| `Super + w`      | Example command action     |
+| `Super + e`      | Example command action     |
+| `Escape`         | Return to normal mode      |
+
+### Window Mode
+| Key               | Action                     |
+|------------------|----------------------------|
+| `Super + h`      | Move window left           |
+| `Super + j`      | Move window down           |
+| `Super + k`      | Move window up             |
+| `Super + l`      | Move window right          |
+| `Escape`         | Return to normal mode      |
+
+### Tag Mode
+| Key               | Action                     |
+|------------------|----------------------------|
+| `Super + [1-9]`  | Switch to workspace        |
+| `Escape`         | Return to normal mode      |
 
 ---
+
+## ⚙️ Configuration System
+
+DINA uses a human-readable configuration file located at `~/.config/dina/config`. This file allows you to customize keybindings, autostart applications, workspace settings, and accessibility options without recompiling.
+
+### Key Features
+
+1. **Human-Readable Format**: Easy-to-edit TOML-like syntax that doesn't require programming knowledge
+2. **Dynamic Loading**: Changes take effect when DINA starts without recompilation
+3. **Comprehensive Options**: Control all aspects of DINA's behavior
+
+### Configuration Sections
+
+- **Appearance**: Border width, font settings
+- **Layout**: Layout options (currently only monocle is supported)
+- **Workspaces**: Tag names and configuration
+- **Keybindings**: Keyboard shortcuts for all actions
+- **Autostart**: Programs to launch when DINA starts
+- **Accessibility**: Sound and speech preferences
+- **Rules**: Window placement rules
+
+### Example Configuration
+
+```toml
+[keybindings]
+modifier = "super"
+"modifier+Return" = "exec:alacritty"
+"modifier+a" = "exec:~/.local/bin/app-launcher"
+"modifier+b" = "exec:~/.local/bin/toggle-blackout"
+
+[autostart]
+orca = "~/.local/bin/start-orca"
+compositor = "picom --daemon"
+
+[accessibility]
+enable_sounds = true
+enable_screen_reader = true
+announce_workspace_changes = true
+```
+
+For full documentation, see the `man dina-config` manual page.
+
+## 💻 Project Independence
+
+DINA began as a fork of dwm but has since evolved into a completely independent project with:
+
+- ✅ Human-readable configuration (no recompiling needed)
+- ✅ Modular architecture with clean separation of concerns
+- ✅ Specialized accessibility features for blind users
+- ✅ Focus on screen reader compatibility rather than visual elements
+- ✅ Utility scripts for configuration management
+
+While we appreciate the minimalist philosophy that inspired this project, DINA now stands on its own with a focus on accessibility first.
 
 ## 🗂️ Workspace Configuration
 
@@ -134,7 +227,7 @@ DINA remembers which applications belong on which workspaces, creating a consist
    - Move the application to your desired workspace using `Super + Shift + [1-9]`
    - DINA will remember this preference and apply it automatically next time
 
-3. **Configuration File**: Your workspace layout is stored in `~/.config/dina/workspace_layout` as a readable text file you can also edit manually.
+3. **Configuration File**: Your workspace layout is stored in `~/.config/dina/workspace` as a readable text file you can also edit manually.
 
 4. **Format**: Each line in the file follows this pattern:
    ```
@@ -163,7 +256,7 @@ Terminal|xterm|4
 You should have the following packages installed:
 
 - `libx11`, `libxinerama`, `libxft`
-- `orca`, `yad`, `sxhkd`, `sox`, `acpi`, `speech-dispatcher`
+- `orca`, `yad`, `sox`, `acpi`, `speech-dispatcher`
 - `python3` (for interactive setup)
 - A terminal emulator like `alacritty`, `foot`, or `xterm`
 
@@ -182,3 +275,15 @@ For building Debian packages:
 ## 🔗 License
 
 DINA is licensed under the MIT License. See the `LICENSE` file.
+
+---
+
+## 👏 Credits
+
+DINA was created with accessibility as the primary goal. Special thanks to:
+
+- The Orca screen reader project for making Linux accessible
+- The Linux accessibility community for their feedback and support
+- Various open source projects that have inspired DINA's minimalist approach
+
+DINA is maintained as an open source project dedicated to making Linux window management accessible for blind users.

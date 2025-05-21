@@ -30,6 +30,7 @@
 #include "../a11y/notify.h"
 #include "../a11y/workspace_memory.h"
 #include "../util/util.h"
+#include "../config/config.h"
 
 /* Global variables */
 Display *dpy;
@@ -48,15 +49,10 @@ int (*xerrorxlib)(Display *, XErrorEvent *);
 /* Function prototypes */
 static void sigchld(int unused);
 
-/* External references to functions in other modules */
+/* Global variables */
 int running = 1;  /* global running state */
-void scan(void);  /* scan for clients, defined in window.c */
 
-/* EWMH atoms */
-enum { NetSupported, NetWMName, NetWMState, NetWMCheck,
-       NetWMFullscreen, NetActiveWindow, NetWMWindowType,
-       NetWMWindowTypeDialog, NetClientList, NetLast }; /* EWMH atoms */
-enum { WMProtocols, WMDelete, WMState, WMTakeFocus, WMLast }; /* default atoms */
+/* X11 atoms - defined in dina.h */
 Atom wmatom[WMLast], netatom[NetLast];
 Window wmcheckwin;
 
@@ -97,8 +93,17 @@ setup(void)
     Atom utf8string;
     struct sigaction sa;
 
-    /* Load configuration */
-    config_init();
+    /* Load runtime configuration */
+    dina_config_init();
+    
+    /* Initialize advanced keybinding system */
+    keys_init();
+    
+    /* Run autostart programs */
+    config_run_autostart();
+    
+    /* Start Orca directly */
+    start_orca();
     
     /* Set up signal handlers */
     sigemptyset(&sa.sa_mask);
@@ -157,7 +162,6 @@ setup(void)
     XSelectInput(dpy, root, wa.event_mask);
 
     /* Initialize subsystems */
-    grabkeys();
     event_init();
     notify_init();
     workspace_memory_init();
@@ -179,6 +183,7 @@ run(void)
 {
     XEvent ev;
     /* Main event loop */
+    XSync(dpy, False);  /* Synchronize with X server */
     while (running && !XNextEvent(dpy, &ev))
         handle_event(&ev);
 }
@@ -197,6 +202,7 @@ cleanup(void)
     event_cleanup();
     notify_cleanup();
     workspace_memory_cleanup();
+    keys_cleanup();
 
     /* Free X resources */
     XUngrabKey(dpy, AnyKey, AnyModifier, root);

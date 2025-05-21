@@ -1,3 +1,12 @@
+/* 
+ * NOTICE: DINA now uses a runtime configuration file at ~/.config/dina/config
+ * 
+ * This file is still supported for backward compatibility, but the recommended
+ * way to configure DINA is through the runtime configuration file.
+ * 
+ * Run 'dina-config-migrate' to migrate settings from this file to the runtime config.
+ */
+
 /* appearance settings */
 static const unsigned int borderpx  = 1;           // Border pixel of windows
 static const unsigned int snap      = 32;          // Snap pixel for window movement
@@ -41,9 +50,7 @@ static const Layout layouts[] = {
 /* helper macro to spawn shell commands */
 #define SHCMD(cmd) { .v = (const char*[]){ "/bin/sh", "-c", cmd, NULL } }
 
-/* dummy dmenu command to satisfy references — not used */
-static char dmenumon[2] = "0";
-static const char *dmenucmd[] = { "true", NULL };
+/* Removed dmenu references - not needed */
 
 /* key bindings — minimal, accessible */
 static const Key keys[] = {
@@ -72,13 +79,9 @@ static const Key keys[] = {
 	{ MODKEY|ShiftMask,             XK_q,      quit,           {0} }         // Quit DINA
 };
 
-/* mouse button definitions — mostly left as placeholders */
+/* mouse button definitions - minimal for headless mode */
 static const Button buttons[] = {
 	{ ClkClientWin,         MODKEY,         Button1,        movemouse,      {0} },
-	{ ClkClientWin,         MODKEY,         Button2,        NULL,           {0} }, // disabled togglefloating
 	{ ClkClientWin,         MODKEY,         Button3,        resizemouse,    {0} },
-	{ ClkTagBar,            0,              Button1,        view,           {0} },
-	{ ClkTagBar,            0,              Button3,        NULL,           {0} }, // toggleview removed
-	{ ClkTagBar,            MODKEY,         Button1,        tag,            {0} },
-	{ ClkTagBar,            MODKEY,         Button3,        NULL,           {0} }, // toggletag removed
+	/* Removed all status bar and tag bar buttons - not needed for headless mode */
 };
