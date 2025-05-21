@@ -40,6 +40,7 @@
 #include <X11/extensions/Xinerama.h>
 #endif /* XINERAMA */
 #include <X11/Xft/Xft.h>
+#include <sys/stat.h>
 
 #include "drw.h"
 #include "util.h"
@@ -1657,13 +1658,73 @@ setup(void)
 	/* Autostart Orca screen reader for accessibility */
 	const char *home = getenv("HOME");
 	if (home) {
-		char orcapath[256];
-		snprintf(orcapath, sizeof(orcapath), "%s/.local/bin/start-orca", home);
+		struct stat st;
+		/* First check if start-orca exists in standard location */
+		char orcapath[256] = {0};
+		char autostart_file[256] = {0};
 		
-		Arg arg = {0};
-		char *orcacmd[] = { orcapath, NULL };
-		arg.v = orcacmd;
-		spawn(&arg);
+		/* Create locations to check for the start-orca script */
+		char paths_to_check[5][256];
+		int paths_count = 0;
+		
+		/* 1. Check user's local bin directory */
+		snprintf(paths_to_check[paths_count++], 256, "%s/.local/bin/start-orca", home);
+		/* 2. Check system bin directory */
+		snprintf(paths_to_check[paths_count++], 256, "/usr/bin/start-orca");
+		/* 3. Check DINA scripts directory relative to executable */
+		char selfpath[256] = {0};
+		ssize_t len = readlink("/proc/self/exe", selfpath, sizeof(selfpath) - 1);
+		if (len > 0) {
+			char *last_slash = strrchr(selfpath, '/');
+			if (last_slash) {
+				*last_slash = '\0'; /* cut off executable name */
+				snprintf(paths_to_check[paths_count++], 256, "%s/scripts/start-orca", selfpath);
+			}
+		}
+		/* 4. Check directly in scripts directory of repo */
+		snprintf(paths_to_check[paths_count++], 256, "%s/Documents/GitHub/DINA/scripts/start-orca", home);
+		/* 5. Check common install locations */
+		snprintf(paths_to_check[paths_count++], 256, "/usr/local/bin/start-orca");
+		
+		/* Find the first valid path */
+		for (int i = 0; i < paths_count; i++) {
+			if (access(paths_to_check[i], X_OK) == 0) {
+				strncpy(orcapath, paths_to_check[i], sizeof(orcapath) - 1);
+				break;
+			}
+		}
+		
+		/* Create autostart directory if it doesn't exist */
+		snprintf(autostart_file, sizeof(autostart_file), "%s/.config/autostart", home);
+		if (stat(autostart_file, &st) == -1) {
+			mkdir(autostart_file, 0755);
+		}
+		
+		/* Launch the screen reader if we found it */
+		if (orcapath[0] != '\0') {
+			Arg arg = {0};
+			char *orcacmd[] = { orcapath, NULL };
+			arg.v = orcacmd;
+			spawn(&arg);
+			
+			/* Also create desktop entry for future sessions */
+			snprintf(autostart_file, sizeof(autostart_file), "%s/.config/autostart/orca-screen-reader.desktop", home);
+			FILE *desktop_file = fopen(autostart_file, "w");
+			if (desktop_file) {
+				fprintf(desktop_file, 
+					"[Desktop Entry]\n"
+					"Type=Application\n"
+					"Name=Orca Screen Reader\n"
+					"Comment=Start Orca screen reader with DINA\n"
+					"Exec=%s\n"
+					"Terminal=false\n"
+					"X-GNOME-Autostart-enabled=true\n"
+					"X-GNOME-Autostart-Phase=WindowManager\n"
+					"NoDisplay=false\n", orcapath);
+				fclose(desktop_file);
+				chmod(autostart_file, 0755);
+			}
+		}
 	}
 	
 	/* Play startup sound to indicate DINA has started successfully */

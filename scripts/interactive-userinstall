@@ -254,6 +254,9 @@ def main():
             "alacritty", "xterm", "urxvt", "kitty", "gnome-terminal", 
             "konsole", "terminator", "xfce4-terminal", "tilix", 
             "st", "foot", "wezterm"
+        ],
+        "screen_readers": [
+            "orca"
         ]
     }
     
@@ -326,11 +329,66 @@ def main():
             else:
                 print_error("Invalid path, skipping terminal selection")
     
+    # Screen reader selection
+    print_header("Screen Reader Setup")
+    # Default path for our custom start-orca script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    ensure_script = os.path.join(script_dir, "ensure-orca-autostart")
+    
+    if os.path.exists(ensure_script) and os.access(ensure_script, os.X_OK):
+        print_info("Found ensure-orca-autostart script")
+        if ask_yes_no("Would you like to set up Orca screen reader to autostart?"):
+            try:
+                # Run the script to ensure Orca autostart is configured
+                subprocess.run([ensure_script], check=True)
+                print_success("Orca screen reader configured to autostart")
+            except Exception as e:
+                print_error(f"Failed to configure Orca autostart: {e}")
+    else:
+        print_warning("Could not find ensure-orca-autostart script")
+        
+        # Check if Orca is installed
+        screen_readers = found_apps.get("screen_readers", [])
+        if screen_readers:
+            print_info("Found Orca screen reader")
+            if ask_yes_no("Would you like to set up Orca to autostart?"):
+                # Create autostart directory if needed
+                autostart_dir = os.path.expanduser("~/.config/autostart")
+                if not os.path.exists(autostart_dir):
+                    os.makedirs(autostart_dir)
+                
+                # Create desktop entry
+                orca_path = screen_readers[0][1]  # Get path of first screen reader (Orca)
+                desktop_file = os.path.join(autostart_dir, "orca-screen-reader.desktop")
+                
+                with open(desktop_file, 'w') as f:
+                    f.write(f"""[Desktop Entry]
+Type=Application
+Name=Orca Screen Reader
+Comment=Start Orca screen reader for DINA accessibility
+Exec={orca_path} --replace --no-setup
+Terminal=false
+X-GNOME-Autostart-enabled=true
+X-GNOME-Autostart-Phase=WindowManager
+NoDisplay=false
+""")
+                    
+                os.chmod(desktop_file, 0o755)
+                print_success(f"Created autostart entry for Orca at {desktop_file}")
+        else:
+            print_warning("Orca screen reader not found. Please install Orca for accessibility.")
+    
     # Show selections summary
     print_header("Selected Applications")
     print(f"Browser: {selections.get('browser', (None, None))[0] or 'None'}")
     print(f"File Manager: {selections.get('file_manager', (None, None))[0] or 'None'}")
     print(f"Terminal: {selections.get('terminal', (None, None))[0] or 'None'}")
+    
+    # Show screen reader status
+    if os.path.exists(os.path.expanduser("~/.config/autostart/orca-screen-reader.desktop")):
+        print(f"Screen Reader: Orca (configured to autostart)")
+    else:
+        print(f"Screen Reader: Not configured")
     print()
     
     # Confirm selections
