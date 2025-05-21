@@ -7,8 +7,17 @@
 
 set -e
 
+# Source version from config.mk
+CONFIG_MK="../config.mk"
+if [ -f "$CONFIG_MK" ]; then
+    VERSION=$(grep "^VERSION = " "$CONFIG_MK" | cut -d "=" -f2 | tr -d ' ')
+else
+    echo "Error: config.mk not found!"
+    exit 1
+fi
+
 echo "=== DINA Debian Package Builder ==="
-echo "Building package directly..."
+echo "Building package version $VERSION..."
 
 # Create build directory
 BUILD_DIR="$(pwd)/packaging/build"
@@ -23,7 +32,7 @@ fi
 
 # Create package directory structure
 echo "Creating package structure..."
-PACKAGE_DIR="$BUILD_DIR/dina-1.0"
+PACKAGE_DIR="$BUILD_DIR/dina-$VERSION"
 mkdir -p "$PACKAGE_DIR/DEBIAN"
 mkdir -p "$PACKAGE_DIR/usr/bin"
 mkdir -p "$PACKAGE_DIR/usr/share/man/man1"
@@ -36,7 +45,7 @@ mkdir -p "$PACKAGE_DIR/etc/xdg/autostart"
 echo "Creating package metadata..."
 cat > "$PACKAGE_DIR/DEBIAN/control" << EOF
 Package: dina
-Version: 1.0-1
+Version: $VERSION-1
 Section: x11
 Priority: optional
 Architecture: amd64
@@ -300,18 +309,18 @@ dpkg-deb --build --root-owner-group "$PACKAGE_DIR" || {
     tar -czf ../../control.tar.gz ./*
     cd ../..
     echo "2.0" > debian-binary
-    ar r dina_1.0-1_amd64.deb debian-binary control.tar.gz data.tar.gz
+    ar r dina_${VERSION}-1_amd64.deb debian-binary control.tar.gz data.tar.gz
     rm debian-binary control.tar.gz data.tar.gz
 }
 
 # Rename package to proper format
-PACKAGE_FILE="dina_1.0-1_amd64.deb"
+PACKAGE_FILE="dina_${VERSION}-1_amd64.deb"
 if [ -f "$PACKAGE_DIR.deb" ]; then
     mv "$PACKAGE_DIR.deb" "$BUILD_DIR/$PACKAGE_FILE"
 elif [ ! -f "$BUILD_DIR/$PACKAGE_FILE" ]; then
     echo "Creating package manually..."
     cd "$BUILD_DIR"
-    if [ -f "dina_1.0-1_amd64.deb" ]; then
+    if [ -f "dina_${VERSION}-1_amd64.deb" ]; then
         # Package already exists at the right location
         echo "Package already exists at the right location."
     else
