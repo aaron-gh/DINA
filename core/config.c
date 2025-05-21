@@ -15,8 +15,10 @@
 #include "dina.h"
 #include "../util/util.h"
 
-/* Include the user configuration */
-#include "config.h"
+/* Define TAGMASK (all valid tags) */
+#define TAGMASK ((1 << LENGTH(tags)) - 1)
+
+/* User configuration is already included via config.h */
 
 /**
  * @brief Validate a tag number
@@ -37,6 +39,8 @@ validate_tag(int tag)
  * 
  * Load and validate the configuration
  */
+int config_validate(void); /* Forward declaration */
+
 void
 config_init(void)
 {

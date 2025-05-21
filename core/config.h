@@ -1,65 +1,120 @@
 /**
  * @file config.h
- * @brief Configuration interface for DINA
- *
- * This file contains functions for loading and validating the DINA configuration.
+ * @brief Configuration file for DINA
  */
 
 #ifndef _CONFIG_H
 #define _CONFIG_H
 
-#include "core/dina.h"
+#include <X11/X.h>
+#include <X11/keysym.h>
+#include "dina.h"
+#include "../wm/window.h"
+#include "../wm/monitor.h"
+#include "../wm/tag.h"
 
-/**
- * @brief Initialize configuration
- * 
- * Load and validate the configuration
- */
+/* Forward declarations for functions from monitor.h, window.h, and tag.h */ 
+extern void monocle(Monitor *m);
+extern void focusstack(const Arg *arg);
+extern void killclient(const Arg *arg);
+extern void view(const Arg *arg);
+extern void tag(const Arg *arg);
+extern void movemouse(const Arg *arg);
+extern void resizemouse(const Arg *arg);
+extern void quit(const Arg *arg);
+
+/* appearance settings */
+static const unsigned int borderpx  = 1;           // Border pixel of windows
+static const unsigned int snap      = 32;          // Snap pixel for window movement
+static const int showbar            = 0;           // No status bar — we're headless
+static const int topbar             = 1;           // Irrelevant since bar is hidden
+static const char *fonts[]          = { "monospace:size=10" }; // Font for any visible fallback
+static const char dmenufont[]       = "monospace:size=10";     // Placeholder, dmenu not used
+static const char col_black[]       = "#000000";   // All visual elements black for screen reader use
+
+/* For ui/drw.c */
+enum { SchemeNorm, SchemeSel, SchemeLast }; // Color schemes
+
+/* Click locations for mouse actions */
+enum { ClkTagBar, ClkLtSymbol, ClkStatusText, ClkWinTitle, ClkClientWin, ClkRootWin, ClkLast };
+
+// Color scheme (also all black)
+static const char *colors[][3]      = {
+	[SchemeNorm] = { col_black, col_black, col_black }, // Normal: fg, bg, border
+	[SchemeSel]  = { col_black, col_black, col_black }, // Selected window
+};
+
+/* tags (virtual workspaces) */
+const char *tags[] = { "1", "2", "3", "4", "5", "6", "7", "8", "9" };
+
+/* no window rules */
+static const Rule rules[] = { 
+	/* class      instance    title       tags mask     isfloating   monitor */
+	{ NULL,       NULL,       NULL,       0,            0,           -1 }
+};
+
+/* layout: only monocle is kept */
+static const float mfact     = 0.55;    // Master area size (unused in monocle)
+static const int nmaster     = 1;       // Number of windows in master (unused in monocle)
+static const int resizehints = 0;       // Ignore size hints
+static const int lockfullscreen = 1;    // Force focus on fullscreen windows
+
+static const Layout layouts[] = {
+	{ "[M]",      monocle },             // Only layout available
+};
+
+/* key definitions */
+#define MODKEY Mod4Mask                // Use Super/Windows key as modifier
+#define TAGKEYS(KEY,TAG) \
+	{ MODKEY,                       KEY,      view,           {.ui = 1 << TAG} }, \
+	{ MODKEY|ShiftMask,             KEY,      tag,            {.ui = 1 << TAG} },
+
+/* helper macro to spawn shell commands */
+#define SHCMD(cmd) { .v = (const char*[]){ "/bin/sh", "-c", cmd, NULL } }
+
+/* dummy dmenu command to satisfy references — not used */
+static char dmenumon[2] = "0";
+static const char *dmenucmd[] = { "true", NULL };
+
+/* key bindings — minimal, accessible */
+static const Key keys[] = {
+	{ MODKEY,                       XK_j,      focusstack,     {.i = -1 } }, // Focus previous
+	{ MODKEY,                       XK_l,      focusstack,     {.i = +1 } }, // Focus next
+	{ MODKEY,                       XK_k,      killclient,     {0} },        // Close window
+	/* Tag keys for switching workspaces and moving windows */
+	{ MODKEY,                       XK_1,      view,           {.ui = 1 << 0} },
+	{ MODKEY|ShiftMask,             XK_1,      tag,            {.ui = 1 << 0} },
+	{ MODKEY,                       XK_2,      view,           {.ui = 1 << 1} },
+	{ MODKEY|ShiftMask,             XK_2,      tag,            {.ui = 1 << 1} },
+	{ MODKEY,                       XK_3,      view,           {.ui = 1 << 2} },
+	{ MODKEY|ShiftMask,             XK_3,      tag,            {.ui = 1 << 2} },
+	{ MODKEY,                       XK_4,      view,           {.ui = 1 << 3} },
+	{ MODKEY|ShiftMask,             XK_4,      tag,            {.ui = 1 << 3} },
+	{ MODKEY,                       XK_5,      view,           {.ui = 1 << 4} },
+	{ MODKEY|ShiftMask,             XK_5,      tag,            {.ui = 1 << 4} },
+	{ MODKEY,                       XK_6,      view,           {.ui = 1 << 5} },
+	{ MODKEY|ShiftMask,             XK_6,      tag,            {.ui = 1 << 5} },
+	{ MODKEY,                       XK_7,      view,           {.ui = 1 << 6} },
+	{ MODKEY|ShiftMask,             XK_7,      tag,            {.ui = 1 << 6} },
+	{ MODKEY,                       XK_8,      view,           {.ui = 1 << 7} },
+	{ MODKEY|ShiftMask,             XK_8,      tag,            {.ui = 1 << 7} },
+	{ MODKEY,                       XK_9,      view,           {.ui = 1 << 8} },
+	{ MODKEY|ShiftMask,             XK_9,      tag,            {.ui = 1 << 8} },
+	{ MODKEY|ShiftMask,             XK_q,      quit,           {0} }         // Quit DINA
+};
+
+/* mouse button definitions — mostly left as placeholders */
+static const Button buttons[] = {
+	{ ClkClientWin,         MODKEY,         Button1,        movemouse,      {0} },
+	{ ClkClientWin,         MODKEY,         Button2,        NULL,           {0} }, // disabled togglefloating
+	{ ClkClientWin,         MODKEY,         Button3,        resizemouse,    {0} },
+	{ ClkTagBar,            0,              Button1,        view,           {0} },
+	{ ClkTagBar,            0,              Button3,        NULL,           {0} }, // toggleview removed
+	{ ClkTagBar,            MODKEY,         Button1,        tag,            {0} },
+	{ ClkTagBar,            MODKEY,         Button3,        NULL,           {0} }, // toggletag removed
+};
+
+/* Config functions */
 void config_init(void);
-
-/**
- * @brief Validate configuration
- * 
- * Check that the configuration is valid
- * 
- * @return 1 if valid, 0 otherwise
- */
-int config_validate(void);
-
-/**
- * @brief Get key binding
- * 
- * Get the key binding for a given keysym and modifiers
- * 
- * @param keysym X11 key symbol
- * @param mod Modifier mask
- * @return Key binding or NULL if not found
- */
-const Key *config_get_key(KeySym keysym, unsigned int mod);
-
-/**
- * @brief Get button binding
- * 
- * Get the button binding for a given click type, button, and modifiers
- * 
- * @param click Button click type
- * @param button Button number
- * @param mod Modifier mask
- * @return Button binding or NULL if not found
- */
-const Button *config_get_button(unsigned int click, unsigned int button, unsigned int mod);
-
-/* External configuration variables */
-extern const char *fonts[];
-extern const float mfact;
-extern const int nmaster;
-extern const int resizehints;
-extern const int lockfullscreen;
-extern const char *tags[];
-extern const Layout layouts[];
-extern const unsigned int borderpx;
-extern const Key keys[];
-extern const Button buttons[];
-extern const Rule rules[];
 
 #endif /* _CONFIG_H */

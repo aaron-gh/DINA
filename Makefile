@@ -24,28 +24,37 @@ INCS = -I. $(patsubst %,-I%,$(DIRS))
 all: DINA
 
 DINA: ensure_dirs ${OBJ}
-	${CC} -o $@ ${OBJ} ${LDFLAGS} -lX11 -lXinerama
+	@echo "Linking DINA..."
+	@${CC} -o $@ ${OBJ} ${LDFLAGS} || (echo "Failed to link DINA" && exit 1)
+	@echo "Build successful!"
 
 ensure_dirs:
+	@echo "Checking module directories..."
 	@for dir in ${DIRS}; do \
-		mkdir -p $$dir; \
+		if [ ! -d $$dir ]; then \
+			echo "Creating directory: $$dir"; \
+			mkdir -p $$dir; \
+		fi; \
 	done
 
 clean:
-	rm -f DINA ${OBJ} *.core
-	find . -name "*.o" -type f -delete
+	@echo "Cleaning build files..."
+	@rm -f DINA ${OBJ} *.core
+	@find . -name "*.o" -type f -delete
+	@echo "Clean complete."
 
 install: all
-	# Install DINA binary system-wide
-	mkdir -p ${DESTDIR}${PREFIX}/bin
-	cp -f DINA ${DESTDIR}${PREFIX}/bin
-	chmod 755 ${DESTDIR}${PREFIX}/bin/DINA
-	mkdir -p ${DESTDIR}${MANPREFIX}/man1
-	cp -f DINA.1 ${DESTDIR}${MANPREFIX}/man1/DINA.1
-	chmod 644 ${DESTDIR}${MANPREFIX}/man1/DINA.1
-	mkdir -p ${DESTDIR}${MANPREFIX}/man5
-	cp -f dina-workspace.5 ${DESTDIR}${MANPREFIX}/man5/dina-workspace.5
-	chmod 644 ${DESTDIR}${MANPREFIX}/man5/dina-workspace.5
+	@echo "Installing DINA system-wide..."
+	@mkdir -p ${DESTDIR}${PREFIX}/bin
+	@cp -f DINA ${DESTDIR}${PREFIX}/bin
+	@chmod 755 ${DESTDIR}${PREFIX}/bin/DINA
+	@mkdir -p ${DESTDIR}${MANPREFIX}/man1
+	@cp -f DINA.1 ${DESTDIR}${MANPREFIX}/man1/DINA.1
+	@chmod 644 ${DESTDIR}${MANPREFIX}/man1/DINA.1
+	@mkdir -p ${DESTDIR}${MANPREFIX}/man5
+	@cp -f dina-workspace.5 ${DESTDIR}${MANPREFIX}/man5/dina-workspace.5
+	@chmod 644 ${DESTDIR}${MANPREFIX}/man5/dina-workspace.5
+	@echo "DINA installed to ${DESTDIR}${PREFIX}/bin/DINA"
 
 userinstall:
 	# Run the interactive userinstall script
@@ -70,6 +79,7 @@ uninstall:
 
 # Pattern rule for object files
 %.o: %.c
-	${CC} -c ${CFLAGS} ${INCS} $< -o $@
+	@echo "Compiling $<..."
+	@${CC} -c ${ALL_CFLAGS} $< -o $@ || (echo "Failed to compile $<" && exit 1)
 
 .PHONY: all clean install userinstall interactive-userinstall uninstall ensure_dirs

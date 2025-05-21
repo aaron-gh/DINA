@@ -128,10 +128,10 @@ struct Monitor {
 };
 
 /* Function declarations */
-void cleanup(void);
-void setup(void);
-void run(void);
-int main(int argc, char *argv[]);
+extern void cleanup(void);
+extern void setup(void);
+extern void run(void);
+extern int main(int argc, char *argv[]);
 
 /* Global variable declarations (extern) */
 extern Display *dpy;

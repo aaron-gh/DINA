@@ -13,21 +13,23 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/wait.h>
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
 #include <X11/Xproto.h>
 #include <X11/Xutil.h>
+#include <X11/cursorfont.h>
 #include <X11/Xft/Xft.h>
 
-#include "core/dina.h"
-#include "core/event.h"
-#include "core/config.h"
-#include "wm/window.h"
-#include "wm/monitor.h"
-#include "wm/tag.h"
-#include "a11y/notify.h"
-#include "a11y/workspace_memory.h"
-#include "util/util.h"
+#include "dina.h"
+#include "event.h"
+#include "config.h"
+#include "../wm/window.h"
+#include "../wm/monitor.h"
+#include "../wm/tag.h"
+#include "../a11y/notify.h"
+#include "../a11y/workspace_memory.h"
+#include "../util/util.h"
 
 /* Global variables */
 Display *dpy;
@@ -44,10 +46,11 @@ char stext[256];
 int (*xerrorxlib)(Display *, XErrorEvent *);
 
 /* Function prototypes */
-static void setup(void);
-static void cleanup(void);
-static void run(void);
 static void sigchld(int unused);
+
+/* External references to functions in other modules */
+int running = 1;  /* global running state */
+void scan(void);  /* scan for clients, defined in window.c */
 
 /* EWMH atoms */
 enum { NetSupported, NetWMName, NetWMState, NetWMCheck,
@@ -87,10 +90,9 @@ sigchld(int unused)
  * 
  * Initialize resources and set up DINA
  */
-static void
+void
 setup(void)
 {
-    int i;
     XSetWindowAttributes wa;
     Atom utf8string;
     struct sigaction sa;
@@ -147,7 +149,7 @@ setup(void)
     XDeleteProperty(dpy, root, netatom[NetClientList]);
 
     /* Select events */
-    wa.cursor = drw_cur_create(drw, XC_left_ptr);
+    wa.cursor = 0; /* no cursor */
     wa.event_mask = SubstructureRedirectMask|SubstructureNotifyMask
         |ButtonPressMask|PointerMotionMask|EnterWindowMask
         |LeaveWindowMask|StructureNotifyMask|PropertyChangeMask;
@@ -172,7 +174,7 @@ setup(void)
  * 
  * Process events
  */
-static void
+void
 run(void)
 {
     XEvent ev;
@@ -186,7 +188,7 @@ run(void)
  * 
  * Free resources before exit
  */
-static void
+void
 cleanup(void)
 {
     Monitor *m;
@@ -203,7 +205,6 @@ cleanup(void)
         mons = mons->next;
         cleanupmon(m);
     }
-    drw_cur_free(drw, drw->cursor);
     drw_free(drw);
     XSync(dpy, False);
     XSetInputFocus(dpy, PointerRoot, RevertToPointerRoot, CurrentTime);
