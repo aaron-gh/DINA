@@ -185,6 +185,34 @@ def install_scripts():
         print_error(f"Failed to install scripts: {e}")
         return False
 
+def setup_sxhkd_config():
+    """Setup sxhkd configuration directory and copy default config"""
+    try:
+        # Create sxhkd config directory if needed
+        sxhkd_dir = os.path.expanduser("~/.config/sxhkd")
+        if not os.path.exists(sxhkd_dir):
+            os.makedirs(sxhkd_dir)
+            print_info(f"Created directory {sxhkd_dir}")
+            
+        # Get path to default sxhkdrc
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        dina_dir = os.path.dirname(script_dir)
+        source_config = os.path.join(dina_dir, "sxhkd", "sxhkdrc")
+        dest_config = os.path.join(sxhkd_dir, "sxhkdrc")
+        
+        # Copy default sxhkdrc if it doesn't exist or if user wants to reset
+        if os.path.exists(source_config):
+            if not os.path.exists(dest_config) or ask_yes_no("Reset sxhkd configuration to defaults?"):
+                shutil.copy2(source_config, dest_config)
+                print_success(f"Copied default sxhkd configuration to {dest_config}")
+        else:
+            print_warning("Could not find default sxhkd configuration")
+            
+        return True
+    except Exception as e:
+        print_error(f"Failed to setup sxhkd configuration: {e}")
+        return False
+
 def main():
     # Show welcome message
     print_header("DINA Interactive Setup")
@@ -196,6 +224,17 @@ def main():
     if not ask_yes_no("Continue with setup?"):
         print("Setup cancelled")
         return
+        
+    # Install scripts
+    print_header("Installing DINA Scripts")
+    if install_scripts():
+        print_success("All scripts installed to ~/.local/bin")
+    else:
+        print_warning("Some scripts may not have been installed correctly")
+    
+    # Setup sxhkd configuration
+    print_header("Setting up sxhkd configuration")
+    setup_sxhkd_config()
     
     # Discover applications
     print_info("Searching for installed applications...")

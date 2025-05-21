@@ -46,13 +46,12 @@ Build and install as root:
 
     make clean install
 
-Then install user configs as your user:
+Then setup user configs as your user:
 
     make userinstall
 
-For interactive setup:
-
-    make interactive-userinstall
+This will run the interactive setup to install scripts,
+configure keybindings, and set up preferred applications.
 
 Building Debian Packages:
 

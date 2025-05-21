@@ -56,19 +56,16 @@ make
 sudo make install
 ```
 
-#### 2. Install user configs and scripts (as your user):
+#### 2. Setup user configs and scripts (as your user):
 
 ```sh
 make userinstall
 ```
 
-#### 3. Interactive Setup (optional)
-
-For an accessible, interactive setup that helps you configure your preferred applications:
-
-```sh
-make interactive-userinstall
-```
+This will run the interactive setup that:
+- Installs all utility scripts to your ~/.local/bin directory
+- Sets up sxhkd configuration for keyboard shortcuts
+- Detects and configures your preferred applications
 
 This will:
 - Detect installed browsers, file managers, and terminals
