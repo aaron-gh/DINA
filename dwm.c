@@ -57,6 +57,7 @@
 #define TAGMASK                 ((1 << LENGTH(tags)) - 1)
 #define TEXTW(X)                (drw_fontset_getwidth(drw, (X)) + lrpad)
 #define SHCMD_NOTIFY(cmd)      { .v = (const char*[]){ "/bin/sh", "-c", cmd, NULL } }
+#define APP_PERSIST_FILE        ".config/dina/workspace_layout"
 
 /* enums */
 enum { CurNormal, CurResize, CurMove, CurLast }; /* cursor */
@@ -187,6 +188,7 @@ static void motionnotify(XEvent *e);
 static void movemouse(const Arg *arg);
 static void notify_tag(int tag);
 static void notify_window_move(int from_tag, int to_tag);
+static void notify_window_untracked(const char *class, const char *instance);
 static void notify_startup(void);
 static Client *nexttiled(Client *c);
 static void pop(Client *c);
@@ -238,6 +240,20 @@ static int xerrordummy(Display *dpy, XErrorEvent *ee);
 static int xerrorstart(Display *dpy, XErrorEvent *ee);
 static void zoom(const Arg *arg);
 
+/* App persistence functions */
+static void loadapptagpersist(void);
+static void saveapptagpersist(void);
+static void updateapptagpersist(const char *class, const char *instance, int tag);
+static int findapptagpersist(const char *class, const char *instance);
+static void notifytagplacement(const char *class, const char *instance, int tag);
+
+/* App persistence structure */
+typedef struct {
+	char class[256];   /* application class (WM_CLASS) */
+	char instance[256]; /* application instance (WM_CLASS) */
+	int tag;           /* tag number (1-9) */
+} AppPersist;
+
 /* variables */
 static const char broken[] = "broken";
 static char stext[256];
@@ -247,6 +263,8 @@ static int bh;               /* bar height */
 static int lrpad;            /* sum of left and right padding for text */
 static int (*xerrorxlib)(Display *, XErrorEvent *);
 static unsigned int numlockmask = 0;
+static AppPersist *app_persists = NULL;  /* Dynamic array of app persistence entries */
+static int n_app_persists = 0;           /* Number of entries in app_persists */
 static void (*handler[LASTEvent]) (XEvent *) = {
 	[ButtonPress] = buttonpress,
 	[ClientMessage] = clientmessage,
@@ -287,6 +305,8 @@ applyrules(Client *c)
 	const Rule *r;
 	Monitor *m;
 	XClassHint ch = { NULL, NULL };
+	int persist_idx;
+	int from_persistence = 0;
 
 	/* rule matching */
 	c->isfloating = 0;
@@ -295,24 +315,48 @@ applyrules(Client *c)
 	class    = ch.res_class ? ch.res_class : broken;
 	instance = ch.res_name  ? ch.res_name  : broken;
 
-	for (i = 0; i < LENGTH(rules); i++) {
-		r = &rules[i];
-		if ((!r->title || strstr(c->name, r->title))
-		&& (!r->class || strstr(class, r->class))
-		&& (!r->instance || strstr(instance, r->instance)))
-		{
-			c->isfloating = r->isfloating;
-			c->tags |= r->tags;
-			for (m = mons; m && m->num != r->monitor; m = m->next);
-			if (m)
-				c->mon = m;
+	/* First check for persistent tag assignments */
+	persist_idx = findapptagpersist(class, instance);
+	if (persist_idx >= 0) {
+		c->tags = 1 << (app_persists[persist_idx].tag - 1);
+		from_persistence = 1;
+	}
+
+	/* If no persistent assignment or it returned 0, apply standard rules */
+	if (!from_persistence || c->tags == 0) {
+		for (i = 0; i < LENGTH(rules); i++) {
+			r = &rules[i];
+			if ((!r->title || strstr(c->name, r->title))
+			&& (!r->class || strstr(class, r->class))
+			&& (!r->instance || strstr(instance, r->instance)))
+			{
+				c->isfloating = r->isfloating;
+				c->tags |= r->tags;
+				for (m = mons; m && m->num != r->monitor; m = m->next);
+				if (m)
+					c->mon = m;
+			}
 		}
 	}
+
 	if (ch.res_class)
 		XFree(ch.res_class);
 	if (ch.res_name)
 		XFree(ch.res_name);
+
+	/* Ensure window has tags, defaulting to current tag if none assigned */
 	c->tags = c->tags & TAGMASK ? c->tags & TAGMASK : c->mon->tagset[c->mon->seltags];
+
+	/* Notify user if we placed window based on persistence */
+	if (from_persistence && c->tags != (1 << 0)) {  /* Don't notify for tag 1 */
+		/* Find the tag number (1-based) */
+		for (i = 0; i < LENGTH(tags); i++) {
+			if (c->tags & (1 << i)) {
+				notifytagplacement(class, instance, i + 1);
+				break;
+			}
+		}
+	}
 }
 
 int
@@ -1586,6 +1630,9 @@ setup(void)
 	XSetWindowAttributes wa;
 	Atom utf8string;
 	struct sigaction sa;
+	
+	/* Load application persistence data */
+	loadapptagpersist();
 
 	/* do not transform children into zombies when they terminate */
 	sigemptyset(&sa.sa_mask);
@@ -1785,6 +1832,27 @@ spawn(const Arg *arg)
 }
 
 void
+notify_window_untracked(const char *class, const char *instance)
+{
+	char cmd[512];
+	char app_name[512];
+	
+	/* Use instance as app name, or class if instance is "broken" */
+	if (strcmp(instance, broken) == 0)
+		strncpy(app_name, class, sizeof(app_name) - 1);
+	else
+		strncpy(app_name, instance, sizeof(app_name) - 1);
+	
+	/* Create notification command */
+	snprintf(cmd, sizeof(cmd), 
+		"play -nq synth 0.1 sine 600 sine 400 vol 0.3 & spd-say -r -40 \"%s no longer tracked\"", 
+		app_name);
+	
+	Arg arg = SHCMD_NOTIFY(cmd);
+	spawn(&arg);
+}
+
+void
 tag(const Arg *arg)
 {
 	if (selmon->sel && arg->ui & TAGMASK) {
@@ -1810,6 +1878,32 @@ tag(const Arg *arg)
 		// Only notify if the tag actually changed
 		if (oldtags != selmon->sel->tags) {
 			notify_window_move(from_tag, to_tag);
+			
+			// Get window class and instance for persistence
+			XClassHint ch = { NULL, NULL };
+			if (XGetClassHint(dpy, selmon->sel->win, &ch)) {
+				const char *class = ch.res_class ? ch.res_class : broken;
+				const char *instance = ch.res_name ? ch.res_name : broken;
+				
+				// Check if we're removing a tracked application
+				int was_tracked = -1;
+				if (to_tag == 1) {
+					was_tracked = findapptagpersist(class, instance);
+				}
+				
+				// Store or remove tag preference for this application
+				updateapptagpersist(class, instance, to_tag);
+				
+				// Notify if we untracked an application
+				if (to_tag == 1 && was_tracked >= 0) {
+					notify_window_untracked(class, instance);
+				}
+				
+				if (ch.res_class)
+					XFree(ch.res_class);
+				if (ch.res_name)
+					XFree(ch.res_name);
+			}
 		}
 		
 		focus(NULL);
@@ -2297,6 +2391,222 @@ zoom(const Arg *arg)
 	if (c == nexttiled(selmon->clients) && !(c = nexttiled(c->next)))
 		return;
 	pop(c);
+}
+
+void
+loadapptagpersist(void)
+{
+	char *home = getenv("HOME");
+	char path[512];
+	FILE *f;
+	
+	if (!home)
+		return;
+	
+	/* Free existing entries if any */
+	if (app_persists) {
+		free(app_persists);
+		app_persists = NULL;
+		n_app_persists = 0;
+	}
+	
+	/* Construct path to persistence file in user's home directory */
+	snprintf(path, sizeof(path), "%s/%s", home, APP_PERSIST_FILE);
+	
+	/* Ensure directory exists */
+	char dir_path[512];
+	snprintf(dir_path, sizeof(dir_path), "%s/.config", home);
+	mkdir(dir_path, 0755);
+	snprintf(dir_path, sizeof(dir_path), "%s/.config/dina", home);
+	mkdir(dir_path, 0755);
+	
+	f = fopen(path, "r");
+	if (!f)
+		return;  /* File doesn't exist, that's fine */
+	
+	/* First, count the number of entries (non-comment lines) */
+	char line[1024];
+	int count = 0;
+	
+	while (fgets(line, sizeof(line), f)) {
+		/* Skip comment lines and empty lines */
+		if (line[0] != '#' && line[0] != '\n')
+			count++;
+	}
+	
+	/* Allocate memory for entries */
+	if (count > 0) {
+		app_persists = ecalloc(count, sizeof(AppPersist));
+		rewind(f);
+		
+		/* Now read in the entries */
+		int i = 0;
+		while (fgets(line, sizeof(line), f) && i < count) {
+			/* Skip comment lines and empty lines */
+			if (line[0] == '#' || line[0] == '\n')
+				continue;
+				
+			/* Format: class|instance|tag */
+			char *class_str = strtok(line, "|");
+			char *instance_str = strtok(NULL, "|");
+			char *tag_str = strtok(NULL, "\n");
+			
+			if (class_str && instance_str && tag_str) {
+				strncpy(app_persists[i].class, class_str, sizeof(app_persists[i].class) - 1);
+				strncpy(app_persists[i].instance, instance_str, sizeof(app_persists[i].instance) - 1);
+				app_persists[i].tag = atoi(tag_str);
+				i++;
+			}
+		}
+		n_app_persists = i;  /* In case we didn't read all lines successfully */
+	}
+	
+	fclose(f);
+}
+
+void
+saveapptagpersist(void)
+{
+	char *home = getenv("HOME");
+	char path[512];
+	FILE *f;
+	int i;
+	
+	if (!home || !app_persists || n_app_persists == 0)
+		return;
+	
+	/* Construct path to persistence file in user's home directory */
+	snprintf(path, sizeof(path), "%s/%s", home, APP_PERSIST_FILE);
+	
+	/* Ensure directory exists */
+	char dir_path[512];
+	snprintf(dir_path, sizeof(dir_path), "%s/.config", home);
+	mkdir(dir_path, 0755);
+	snprintf(dir_path, sizeof(dir_path), "%s/.config/dina", home);
+	mkdir(dir_path, 0755);
+	
+	f = fopen(path, "w");
+	if (!f)
+		return;  /* Can't write file */
+	
+	/* Write header and format info */
+	fprintf(f, "# DINA Workspace Layout Configuration\n");
+	fprintf(f, "# Format: application_class|application_instance|workspace_number\n");
+	fprintf(f, "# This file is automatically generated by DINA when you move windows between workspaces\n");
+	fprintf(f, "# The window class and instance are from the X11 WM_CLASS property\n\n");
+	
+	/* Write each entry */
+	for (i = 0; i < n_app_persists; i++) {
+		/* Only write entries for tags 2-9 (don't persist tag 1) */
+		if (app_persists[i].tag > 1) {
+			fprintf(f, "%s|%s|%d\n", 
+				app_persists[i].class, 
+				app_persists[i].instance, 
+				app_persists[i].tag);
+		}
+	}
+	
+	fclose(f);
+}
+
+int
+findapptagpersist(const char *class, const char *instance)
+{
+	int i;
+	
+	if (!app_persists || !class || !instance)
+		return -1;
+	
+	for (i = 0; i < n_app_persists; i++) {
+		if (strcmp(app_persists[i].class, class) == 0 &&
+			strcmp(app_persists[i].instance, instance) == 0) {
+			return i;
+		}
+	}
+	
+	return -1;  /* Not found */
+}
+
+void
+updateapptagpersist(const char *class, const char *instance, int tag)
+{
+	int idx;
+	
+	/* Handle tag 1 differently - remove from persistence */
+	if (tag <= 1) {
+		if (!class || !instance)
+			return;
+			
+		idx = findapptagpersist(class, instance);
+		if (idx >= 0) {
+			/* Remove entry by moving last entry to this position */
+			if (idx < n_app_persists - 1) {
+				/* Copy the last element to this position */
+				strncpy(app_persists[idx].class, app_persists[n_app_persists - 1].class, 
+						sizeof(app_persists[idx].class) - 1);
+				strncpy(app_persists[idx].instance, app_persists[n_app_persists - 1].instance, 
+						sizeof(app_persists[idx].instance) - 1);
+				app_persists[idx].tag = app_persists[n_app_persists - 1].tag;
+			}
+			
+			/* Reduce count */
+			n_app_persists--;
+			
+			/* Save changes */
+			saveapptagpersist();
+		}
+		return;
+	}
+	
+	/* Normal case for tags 2-9 */
+	if (!class || !instance)
+		return;
+	
+	idx = findapptagpersist(class, instance);
+	
+	if (idx >= 0) {
+		/* Update existing entry */
+		app_persists[idx].tag = tag;
+	} else {
+		/* Add new entry */
+		AppPersist *new_persists = realloc(app_persists, (n_app_persists + 1) * sizeof(AppPersist));
+		
+		if (!new_persists)
+			return;  /* Out of memory */
+		
+		app_persists = new_persists;
+		strncpy(app_persists[n_app_persists].class, class, sizeof(app_persists[n_app_persists].class) - 1);
+		strncpy(app_persists[n_app_persists].instance, instance, sizeof(app_persists[n_app_persists].instance) - 1);
+		app_persists[n_app_persists].tag = tag;
+		n_app_persists++;
+	}
+	
+	/* Save changes */
+	saveapptagpersist();
+}
+
+void
+notifytagplacement(const char *class, const char *instance, int tag)
+{
+	if (tag <= 1)  /* Don't notify for tag 1 */
+		return;
+	
+	char cmd[512];
+	char app_name[512];
+	
+	/* Use instance as app name, or class if instance is "broken" */
+	if (strcmp(instance, broken) == 0)
+		strncpy(app_name, class, sizeof(app_name) - 1);
+	else
+		strncpy(app_name, instance, sizeof(app_name) - 1);
+	
+	/* Create notification command */
+	snprintf(cmd, sizeof(cmd), 
+		"play -nq synth 0.1 sine %d sine %d vol 0.3 & spd-say -r -40 \"%s automatically placed on tag %d\"", 
+		400 + (tag * 50), 500 + (tag * 50), app_name, tag);
+	
+	Arg arg = SHCMD_NOTIFY(cmd);
+	spawn(&arg);
 }
 
 int

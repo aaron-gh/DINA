@@ -25,6 +25,7 @@ DINA removes all visual overhead and focuses on **speech-based**, **keyboard-onl
 - ✅ Low battery warning via `notify-send` + `spd-say`
 - ✅ Clean keyboard control via `sxhkd`
 - ✅ Orca screen reader autostart for immediate accessibility
+- ✅ Workspace memory that remembers which applications belong on which workspaces
 
 ---
 
@@ -116,7 +117,42 @@ See the [packaging documentation](packaging/README.md) for more details.
 | `Super + Return`    | Open terminal              |
 | `Super + Backspace` | Power/session menu         |
 | `Super + [1–9]`     | Switch workspace/tag       |
+| `Super + Shift + [1-9]` | Move window to workspace |
 | `Super + Shift + q` | Quit DINA                  |
+
+---
+
+## 🗂️ Workspace Configuration
+
+DINA remembers which applications belong on which workspaces, creating a consistent and predictable environment.
+
+### How It Works
+
+1. **Automatic Placement**: When you launch an application that has previously been assigned to a specific workspace, DINA automatically places it there and announces this with audio feedback.
+
+2. **Setting Preferences**: To set a workspace preference for an application:
+   - Move the application to your desired workspace using `Super + Shift + [1-9]`
+   - DINA will remember this preference and apply it automatically next time
+
+3. **Configuration File**: Your workspace layout is stored in `~/.config/dina/workspace_layout` as a readable text file you can also edit manually.
+
+4. **Format**: Each line in the file follows this pattern:
+   ```
+   ApplicationClass|ApplicationInstance|WorkspaceNumber
+   ```
+
+5. **Clearing Preferences**: To remove an application from the workspace memory, simply move it to workspace 1. DINA will announce that the application is no longer being tracked.
+
+### Example Configuration
+
+```
+# DINA Workspace Layout Configuration
+Firefox|Navigator|2
+Thunderbird|Mail|3
+Terminal|xterm|4
+```
+
+> 💡 Applications will only be placed on workspaces 2-9 automatically. Workspace 1 is considered the default and not remembered.
 
 ---
 

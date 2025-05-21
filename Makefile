@@ -19,6 +19,9 @@ install: all
 	mkdir -p ${DESTDIR}${MANPREFIX}/man1
 	cp -f DINA.1 ${DESTDIR}${MANPREFIX}/man1/DINA.1
 	chmod 644 ${DESTDIR}${MANPREFIX}/man1/DINA.1
+	mkdir -p ${DESTDIR}${MANPREFIX}/man5
+	cp -f dina-workspace.5 ${DESTDIR}${MANPREFIX}/man5/dina-workspace.5
+	chmod 644 ${DESTDIR}${MANPREFIX}/man5/dina-workspace.5
 
 userinstall:
 	# Run the interactive userinstall script
@@ -35,6 +38,7 @@ interactive-userinstall: userinstall
 uninstall:
 	rm -f ${PREFIX}/bin/DINA
 	rm -f ${MANPREFIX}/man1/DINA.1
+	rm -f ${MANPREFIX}/man5/dina-workspace.5
 	rm -f ${HOME}/.local/bin/toggle-blackout ${HOME}/.local/bin/battery-watch \
 	      ${HOME}/.local/bin/app-launcher ${HOME}/.local/bin/session-menu \
 	      ${HOME}/.local/bin/start-orca ${HOME}/.local/bin/interactive-userinstall

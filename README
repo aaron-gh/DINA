@@ -23,6 +23,7 @@ Features
 - Low battery warning via notify-send and spd-say
 - Clean keyboard control via sxhkd
 - Orca screen reader autostart for immediate accessibility
+- Workspace memory that remembers which applications belong on which workspaces
 
 Requirements
 -----------
@@ -68,3 +69,35 @@ and (re)compiling the source code.
 
 Additional user configuration is managed through the interactive
 setup process and the sxhkd configuration file.
+
+Workspace Configuration
+---------------------
+DINA remembers which applications belong on which workspaces, creating
+a consistent and predictable environment.
+
+- Automatic Placement: When you launch an application that has previously 
+  been assigned to a specific workspace, DINA automatically places it there 
+  and announces this with audio feedback.
+
+- Setting Preferences: To set a workspace preference for an application,
+  move it to your desired workspace using Super+Shift+[1-9].
+  DINA will remember this preference and apply it automatically next time.
+
+- Configuration File: Your workspace layout is stored in:
+  ~/.config/dina/workspace_layout
+
+- Clearing Preferences: To remove an application from workspace tracking,
+  move it to workspace 1 (Super+Shift+1). DINA will announce that the
+  application is no longer being tracked.
+
+Format: Each line in the file follows this pattern:
+  ApplicationClass|ApplicationInstance|WorkspaceNumber
+
+Example Configuration:
+  # DINA Workspace Layout Configuration
+  Firefox|Navigator|2
+  Thunderbird|Mail|3
+  Terminal|xterm|4
+
+Applications will only be placed on workspaces 2-9 automatically.
+Workspace 1 is considered the default and not remembered.
