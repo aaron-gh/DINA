@@ -21,15 +21,6 @@ install: all
 	chmod 644 ${DESTDIR}${MANPREFIX}/man1/DINA.1
 
 userinstall:
-	# User-local install for scripts and configs
-	mkdir -p ${HOME}/.local/bin
-	cp -f scripts/* ${HOME}/.local/bin
-	chmod +x ${HOME}/.local/bin/*
-
-	mkdir -p ${HOME}/.config/sxhkd
-	cp -f sxhkd/sxhkdrc ${HOME}/.config/sxhkd/sxhkdrc
-
-interactive-userinstall:
 	# Run the interactive userinstall script
 	@echo "Running interactive setup..."
 	@if [ -x "${HOME}/.local/bin/interactive-userinstall" ]; then \
@@ -37,6 +28,9 @@ interactive-userinstall:
 	else \
 		./scripts/interactive-userinstall; \
 	fi
+
+# Keep this for backwards compatibility
+interactive-userinstall: userinstall
 
 uninstall:
 	rm -f ${PREFIX}/bin/DINA
