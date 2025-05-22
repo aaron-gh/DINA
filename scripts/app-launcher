@@ -1,146 +1,345 @@
 #!/usr/bin/env python3
 #
-# app-launcher - YAD-based application launcher for DINA
-#
-# Parses .desktop files and displays applications in an accessible menu
+# app-launcher - Modern GTK4 application launcher for DINA
 
 import os
+import configparser
+from pathlib import Path
 import subprocess
-import glob
-import re
-import shlex
+import sys
+from collections import defaultdict
 
-def find_desktop_files():
-    """Find all desktop files in standard locations"""
-    locations = [
-        "/usr/share/applications/*.desktop",
-        os.path.expanduser("~/.local/share/applications/*.desktop")
-    ]
-    
-    desktop_files = []
-    for location in locations:
-        desktop_files.extend(glob.glob(location))
-    
-    return desktop_files
+# Command line arguments
+verbose = "-v" in sys.argv or "--verbose" in sys.argv
+no_menu = "--no-menu" in sys.argv
 
-def parse_desktop_file(desktop_file):
-    """Extract name and command from desktop file"""
-    name = None
-    exec_cmd = None
-    in_desktop_entry = False
-    in_desktop_action = False
-    
+# Import GTK
+import gi
+gi.require_version('Gtk', '4.0')
+gi.require_version('Adw', '1')
+from gi.repository import Gtk, Adw, GLib, Gio
+
+def debug(message):
+    """Print debug message if verbose mode is enabled"""
+    if verbose:
+        print(f"DEBUG: {message}")
+
+def read_desktop_files(paths):
+    """Read desktop files from the specified paths"""
+    desktop_entries = []
+    for path in paths:
+        if not path.exists():
+            debug(f"Path does not exist: {path}")
+            continue
+        debug(f"Scanning directory: {path}")
+        for file in Path(path).rglob('*.desktop'):
+            try:
+                config = configparser.ConfigParser(interpolation=None)
+                config.read(file)
+                desktop_entries.append((file, config))
+                debug(f"Processed: {file}")
+            except Exception as e:
+                debug(f"Error reading {file}: {e}")
+    return desktop_entries
+
+# Standard paths for desktop files
+user_applications_path = Path.home() / '.local/share/applications'
+system_applications_path = Path('/usr/share/applications')
+user_flatpak_applications_path = Path.home() / '.local/share/flatpak/exports/share/applications'
+system_flatpak_applications_path = Path('/var/lib/flatpak/exports/share/applications')
+
+# Read desktop files
+desktop_entries = read_desktop_files([
+    user_applications_path, 
+    system_applications_path,
+    user_flatpak_applications_path,
+    system_flatpak_applications_path
+])
+
+debug(f"Found {len(desktop_entries)} desktop files")
+
+# Store applications with name and command
+all_apps = []
+
+for file_path, entry in desktop_entries:
     try:
-        with open(desktop_file, 'r', encoding='utf-8') as f:
-            for line in f:
-                # Track sections in the desktop file
-                if line.strip() == "[Desktop Entry]":
-                    in_desktop_entry = True
-                    in_desktop_action = False
-                    continue
-                elif line.startswith("[Desktop Action"):
-                    in_desktop_entry = False
-                    in_desktop_action = True
-                    continue
-                elif line.startswith("["):
-                    in_desktop_entry = False
-                    in_desktop_action = False
-                    continue
-                
-                # Only process lines from the Desktop Entry section
-                if in_desktop_entry:
-                    if line.startswith('Name='):
-                        name = line.strip()[5:]
-                    elif line.startswith('Exec='):
-                        exec_cmd = line.strip()[5:]
-                        # Remove field codes like %f, %F, %u, etc.
-                        exec_cmd = re.sub(r'\s*%[a-zA-Z]', '', exec_cmd)
-                        # Make sure arguments are properly separated
-                        exec_cmd = exec_cmd.strip()
-    except (IOError, UnicodeDecodeError):
-        return None, None
-    
-    return name, exec_cmd
-
-def main():
-    # Find and parse desktop files
-    app_map = {}
-    pwa_map = {}  # Separate map for web apps
-    
-    for desktop_file in find_desktop_files():
-        name, exec_cmd = parse_desktop_file(desktop_file)
-        if name and exec_cmd:
-            # Check if it's a Firefox PWA
-            if "firefoxpwa" in exec_cmd:
-                if name not in pwa_map:
-                    pwa_map[name] = exec_cmd
-            elif name not in app_map:  # Regular applications
-                app_map[name] = exec_cmd
-    
-    # Format entries for YAD
-    entries = []
-    
-    # Add regular applications
-    for name, exec_cmd in sorted(app_map.items(), key=lambda x: x[0].lower()):
-        entries.append(f"{name}|{exec_cmd}")
+        # Skip entries without Desktop Entry section
+        if not entry.has_section('Desktop Entry'):
+            continue
+            
+        # Check if NoDisplay=true is set
+        try:
+            no_display = entry.getboolean('Desktop Entry', 'NoDisplay', fallback=False)
+            if no_display:
+                debug(f"Skipping {file_path}: NoDisplay=true")
+                continue
+        except:
+            pass
+            
+        # Get application name and command
+        name = entry.get('Desktop Entry', 'Name')
+        exec_command = entry.get('Desktop Entry', 'Exec')
         
-    # Add Firefox PWAs with a separator if any exist
-    if pwa_map:
-        entries.append(f"--- Web Apps ---|")
-        for name, exec_cmd in sorted(pwa_map.items(), key=lambda x: x[0].lower()):
-            entries.append(f"{name} (Web App)|{exec_cmd}")
-    
-    if not entries:
-        print("No applications found")
-        return
-    
-    # Create YAD command
-    yad_cmd = [
-        "yad", "--list", 
-        "--title=Applications", 
-        "--width=600", "--height=400",
-        "--center", 
-        "--column=Application", "--column=Command",
-        "--hide-column=2",
-        "--search-column=1",
-        "--separator=|",
-        "--no-markup"
-    ]
-    
-    # Pass entries to YAD and get selection
-    try:
-        proc = subprocess.Popen(yad_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
-        selection, _ = proc.communicate(input="\n".join(entries))
+        # Clean up exec command by removing parameter codes
+        cmd_parts = []
+        for part in exec_command.split():
+            if not (part.startswith('%') and len(part) == 2):
+                cmd_parts.append(part)
+        clean_exec = ' '.join(cmd_parts)
         
-        # If a selection was made, launch the application
-        if selection.strip():
-            parts = selection.strip().split('|')
-            if len(parts) > 1:
-                cmd = parts[1]
-                if cmd:
-                    print(f"Launching: {cmd}")
-                    # Handle special case for Firefox PWAs which might need shell=True
-                    if "firefoxpwa" in cmd:
-                        print(f"Launching Firefox PWA: {cmd}")
-                        # For Firefox PWAs, we need to handle quotes in the URL properly
-                        # Using shell=True ensures proper handling of complex command
-                        subprocess.Popen(
-                            cmd,
-                            shell=True,
-                            stdout=subprocess.DEVNULL, 
-                            stderr=subprocess.DEVNULL,
-                            start_new_session=True
-                        )
-                    else:
-                        # Use Popen to avoid blocking and detach from parent process
-                        subprocess.Popen(
-                            shlex.split(cmd), 
-                            stdout=subprocess.DEVNULL, 
-                            stderr=subprocess.DEVNULL,
-                            start_new_session=True
-                        )
-    except Exception as e:
-        print(f"Error launching application: {e}")
+        debug(f"Adding application: {name} - {clean_exec}")
+        
+        # Store the application
+        all_apps.append((name, clean_exec, str(file_path)))
+            
+    except (configparser.NoOptionError, KeyError) as e:
+        debug(f"Error processing {file_path}: {e}")
 
-if __name__ == "__main__":
-    main()
+# Sort applications by name
+all_apps.sort(key=lambda x: x[0].lower())
+
+debug(f"Total applications found: {len(all_apps)}")
+
+# For --no-menu mode
+if no_menu:
+    print("\nApplications:")
+    print("-" * 60)
+    for i, (name, exec_command, file_path) in enumerate(all_apps, 1):
+        print(f"{i:3}. {name} ({file_path})")
+    print("-" * 60)
+    print(f"Total: {len(all_apps)} applications")
+    sys.exit(0)
+
+# GTK4/Adwaita based launcher
+class AppLauncherWindow(Adw.ApplicationWindow):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        
+        # Configure window
+        self.set_title("Applications")
+        self.set_default_size(500, 600)
+        
+        # Create a main box with vertical orientation
+        self.main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        self.main_box.set_margin_top(12)
+        self.main_box.set_margin_bottom(12)
+        self.main_box.set_margin_start(12)
+        self.main_box.set_margin_end(12)
+        
+        # Set up the header bar with search
+        header = Adw.HeaderBar()
+        
+        # Create search entry in the header
+        self.search_entry = Gtk.SearchEntry()
+        self.search_entry.set_placeholder_text("Search applications...")
+        self.search_entry.set_hexpand(True)
+        
+        # Connect search signals
+        self.search_entry.connect("search-changed", self.on_search_changed)
+        
+        # Add search to header
+        header.set_title_widget(self.search_entry)
+        
+        # Set the content of the window
+        content_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        content_box.append(header)
+        content_box.append(self.main_box)
+        self.set_content(content_box)
+        
+        # Create the application list
+        self.create_app_list()
+        
+        # Set up keyboard handling
+        key_controller = Gtk.EventControllerKey.new()
+        key_controller.connect("key-pressed", self.on_key_pressed)
+        self.add_controller(key_controller)
+        
+        # Set focus on the search entry
+        self.search_entry.grab_focus()
+        
+        # Incremental typing variables
+        self.typed_text = ""
+        self.typed_text_timeout = None
+    
+    def create_app_list(self):
+        # Create scrolled window
+        scrolled_window = Gtk.ScrolledWindow()
+        scrolled_window.set_hexpand(True)
+        scrolled_window.set_vexpand(True)
+        scrolled_window.set_has_frame(True)
+        
+        # Create list box for applications
+        self.app_listbox = Gtk.ListBox()
+        self.app_listbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
+        self.app_listbox.set_activate_on_single_click(False)
+        self.app_listbox.connect("row-activated", self.on_app_activated)
+        
+        # Set list box sort function
+        self.app_listbox.set_sort_func(lambda row1, row2: row1.app_name.lower() > row2.app_name.lower())
+        
+        # Set filter function
+        self.app_listbox.set_filter_func(self.filter_apps)
+        
+        # Add all applications to the list box
+        for name, exec_command, _ in all_apps:
+            row = Gtk.ListBoxRow()
+            
+            # Store application data with the row
+            row.app_name = name
+            row.app_cmd = exec_command
+            
+            # Create a horizontal box for this app
+            box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+            box.set_margin_top(8)
+            box.set_margin_bottom(8)
+            box.set_margin_start(10)
+            box.set_margin_end(10)
+            
+            # Add label with application name
+            label = Gtk.Label(label=name)
+            label.set_xalign(0)
+            label.set_hexpand(True)
+            box.append(label)
+            
+            row.set_child(box)
+            self.app_listbox.append(row)
+        
+        # Add the list box to the scrolled window
+        scrolled_window.set_child(self.app_listbox)
+        
+        # Add scrolled window to main box
+        self.main_box.append(scrolled_window)
+    
+    def filter_apps(self, row):
+        """Filter function for list box"""
+        search_text = self.search_entry.get_text().lower()
+        if not search_text:
+            return True
+        
+        return search_text in row.app_name.lower()
+    
+    def on_search_changed(self, entry):
+        """Called when search text changes"""
+        self.app_listbox.invalidate_filter()
+        
+        # Prepare for keyboard navigation - select first visible item
+        if entry.get_text():
+            # Delay selection to allow filter to complete
+            GLib.timeout_add(50, self.select_first_visible_row)
+    
+    def select_first_visible_row(self):
+        """Select first visible row after filtering"""
+        self.app_listbox.select_row(self.app_listbox.get_row_at_index(0))
+        return False  # One-time call
+    
+    def on_app_activated(self, listbox, row):
+        """Launch application when row is activated"""
+        if row and hasattr(row, 'app_cmd'):
+            cmd = row.app_cmd
+            try:
+                subprocess.Popen(
+                    cmd,
+                    shell=True,
+                    stdout=subprocess.DEVNULL, 
+                    stderr=subprocess.DEVNULL,
+                    start_new_session=True
+                )
+                debug(f"Launching: {cmd}")
+                self.close()
+            except Exception as e:
+                debug(f"Error launching: {e}")
+                error_dialog = Adw.MessageDialog.new(
+                    self,
+                    f"Error launching {row.app_name}",
+                    str(e)
+                )
+                error_dialog.add_response("ok", "_OK")
+                error_dialog.present()
+    
+    def on_key_pressed(self, controller, keyval, keycode, state):
+        """Handle keyboard navigation and incremental search"""
+        keyname = Gtk.accelerator_name(keyval, 0)
+        
+        # Handle Escape key
+        if keyname == "Escape":
+            if self.search_entry.get_text():
+                # Clear search if there is text
+                self.search_entry.set_text("")
+                return True
+            else:
+                # Otherwise close the window
+                self.close()
+                return True
+        
+        # Handle Down key - focus the list if search has focus
+        if keyname == "Down" and self.search_entry.has_focus():
+            selected_row = self.app_listbox.get_selected_row()
+            if not selected_row:
+                self.select_first_visible_row()
+            self.app_listbox.grab_focus()
+            return True
+        
+        # Handle Return key
+        if keyname == "Return" and self.app_listbox.has_focus():
+            selected_row = self.app_listbox.get_selected_row()
+            if selected_row:
+                self.on_app_activated(self.app_listbox, selected_row)
+                return True
+        
+        # Handle alphabetic keys for incremental search
+        if len(keyname) == 1 and keyname.isalpha() and self.app_listbox.has_focus():
+            # Cancel any pending timeout
+            if self.typed_text_timeout:
+                GLib.source_remove(self.typed_text_timeout)
+            
+            # Add the key to the typed text
+            self.typed_text += keyname.lower()
+            
+            # Find matching application
+            self.find_incremental_match()
+            
+            # Set timeout to reset typed text
+            self.typed_text_timeout = GLib.timeout_add(1500, self.reset_typed_text)
+            return True
+        
+        return False
+    
+    def find_incremental_match(self):
+        """Find app that starts with the typed text"""
+        # Get all visible rows
+        visible_rows = []
+        row = self.app_listbox.get_row_at_index(0)
+        while row:
+            if row.get_visible():
+                visible_rows.append(row)
+            row = self.app_listbox.get_row_at_index(row.get_index() + 1)
+        
+        # Find first match
+        for row in visible_rows:
+            if row.app_name.lower().startswith(self.typed_text):
+                self.app_listbox.select_row(row)
+                # Scroll to show the row
+                row.grab_focus()
+                return True
+        
+        return False
+    
+    def reset_typed_text(self):
+        """Reset typed text after timeout"""
+        self.typed_text = ""
+        self.typed_text_timeout = None
+        return False  # Don't call again
+
+class AppLauncher(Adw.Application):
+    def __init__(self):
+        super().__init__(application_id="com.dina.app-launcher",
+                         flags=Gio.ApplicationFlags.FLAGS_NONE)
+        
+    def do_activate(self):
+        win = AppLauncherWindow(application=self)
+        win.present()
+
+# Run the application
+Adw.init()
+app = AppLauncher()
+app.run(sys.argv)
