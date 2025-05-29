@@ -171,6 +171,7 @@ static void focus(Client *c);
 static void focusin(XEvent *e);
 static void focusmon(const Arg *arg);
 static void focusstack(const Arg *arg);
+static void focuswindowbyindex(const Arg *arg);
 static Atom getatomprop(Client *c, Atom prop);
 static int getrootptr(int *x, int *y);
 static long getstate(Window w);
@@ -906,6 +907,28 @@ focusstack(const Arg *arg)
 	if (c) {
 		focus(c);
 		restack(selmon);
+	}
+}
+
+void
+focuswindowbyindex(const Arg *arg)
+{
+	Client *c;
+	int i = 0;
+	int target = arg->i;
+
+	if (!selmon || target < 0)
+		return;
+
+	for (c = selmon->clients; c; c = c->next) {
+		if (ISVISIBLE(c)) {
+			if (i == target) {
+				focus(c);
+				restack(selmon);
+				return;
+			}
+			i++;
+		}
 	}
 }
 

@@ -50,6 +50,19 @@ static const Key keys[] = {
 	{ MODKEY,                       XK_j,      focusstack,     {.i = -1 } }, // Focus previous
 	{ MODKEY,                       XK_l,      focusstack,     {.i = +1 } }, // Focus next
 	{ MODKEY,                       XK_k,      killclient,     {0} },        // Close window
+	/* Focus window by index (F1-F12) */
+	{ MODKEY,                       XK_F1,     focuswindowbyindex, {.i = 0} },
+	{ MODKEY,                       XK_F2,     focuswindowbyindex, {.i = 1} },
+	{ MODKEY,                       XK_F3,     focuswindowbyindex, {.i = 2} },
+	{ MODKEY,                       XK_F4,     focuswindowbyindex, {.i = 3} },
+	{ MODKEY,                       XK_F5,     focuswindowbyindex, {.i = 4} },
+	{ MODKEY,                       XK_F6,     focuswindowbyindex, {.i = 5} },
+	{ MODKEY,                       XK_F7,     focuswindowbyindex, {.i = 6} },
+	{ MODKEY,                       XK_F8,     focuswindowbyindex, {.i = 7} },
+	{ MODKEY,                       XK_F9,     focuswindowbyindex, {.i = 8} },
+	{ MODKEY,                       XK_F10,    focuswindowbyindex, {.i = 9} },
+	{ MODKEY,                       XK_F11,    focuswindowbyindex, {.i = 10} },
+	{ MODKEY,                       XK_F12,    focuswindowbyindex, {.i = 11} },
 	/* Tag keys for switching workspaces and moving windows */
 	{ MODKEY,                       XK_1,      view,           {.ui = 1 << 0} },
 	{ MODKEY|ShiftMask,             XK_1,      tag,            {.ui = 1 << 0} },
